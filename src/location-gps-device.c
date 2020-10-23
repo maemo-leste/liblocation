@@ -1,40 +1,38 @@
+#include <stdio.h>
+
 #include <gconf/gconf-client.h>
 #include <glib.h>
 
 #include "location-gps-device.h"
 
-guint gps_device_init_signals(GType *itype)
-{
-	return 0;
-}
+#define GCONF_LK_TIME "/system/nokia/location/lastknown/time"
+#define GCONF_LK_LAT  "/system/nokia/location/lastknown/latitude"
+#define GCONF_LK_LON  "/system/nokia/location/lastknown/longitude"
+#define GCONF_LK_ALT  "/system/nokia/location/lastknown/altitude"
+#define GCONF_LK_TRK  "/system/nokia/location/lastknown/track"
+#define GCONF_LK_SPD  "/system/nokia/location/lastknown/speed"
+#define GCONF_LK_CLB  "/system/nokia/location/lastknown/climb"
 
-void gps_device_init(LocationGPSDevice *device)
-{
-	return;
-}
+enum {
+	DEVICE_CHANGED,
+	DEVICE_CONNECTED,
+	DEVICE_DISCONNECTED,
+	LAST_SIGNAL
+};
 
-GType location_gps_device_get_type(void)
-{
-	const gchar *g_type_name;
-	GType type;
-	static volatile gsize g_define_type_id__volatile = 0;
+static guint signals[LAST_SIGNAL] = {};
 
-	if (!g_atomic_pointer_get(&g_define_type_id__volatile) &&
-				g_once_init_enter(&g_define_type_id__volatile)) {
-		g_type_name = g_intern_static_string("LocationGPSDevice");
-		type = g_type_register_static_simple(
-				0x50u,
-				g_type_name,
-				0x50u,
-				(GClassInitFunc)gps_device_init_signals,
-				0x2Cu,
-				(GInstanceInitFunc)gps_device_init,
-				0);
-		g_once_init_leave(&g_define_type_id__volatile, type);
-	}
+struct _LocationGPSDevicePrivate {
+	DBusConnection *bus;
+	LocationGPSDeviceFix *fix;
+};
 
-	return g_define_type_id__volatile;
-}
+G_DEFINE_TYPE_WITH_CODE (LocationGPSDevice,
+		location_gps_device, G_TYPE_OBJECT,
+		G_ADD_PRIVATE(LocationGPSDevice))
+
+#define LOCATION_GPS_DEVICE_PRIVATE(device) \
+	((LocationGPSDevicePrivate *)location_gps_device_get_instance_private(device))
 
 GPtrArray *free_satellites(LocationGPSDevice *device)
 {
@@ -51,6 +49,116 @@ GPtrArray *free_satellites(LocationGPSDevice *device)
 
 	return result;
 }
+
+static void store_lastknown_in_gconf(LocationGPSDevice *device)
+{
+	/* TODO: Maybe error handling? */
+	LocationGPSDeviceFix *fix = device->fix;
+	GConfClient *client = gconf_client_get_default();
+	/* GError *err; */
+
+	if (fix->fields & LOCATION_GPS_DEVICE_TIME_SET)
+		gconf_client_set_float(client, GCONF_LK_TIME, fix->time, NULL);
+	else
+		gconf_client_unset(client, GCONF_LK_TIME, NULL);
+
+	if (fix->fields & LOCATION_GPS_DEVICE_LATLONG_SET) {
+		gconf_client_set_float(client, GCONF_LK_LAT, fix->latitude, NULL);
+		gconf_client_set_float(client, GCONF_LK_LON, fix->longitude, NULL);
+	} else {
+		gconf_client_unset(client, GCONF_LK_LAT, NULL);
+		gconf_client_unset(client, GCONF_LK_LON, NULL);
+	}
+
+	if (fix->fields & LOCATION_GPS_DEVICE_ALTITUDE_SET)
+		gconf_client_set_float(client, GCONF_LK_ALT, fix->altitude, NULL);
+	else
+		gconf_client_unset(client, GCONF_LK_ALT, NULL);
+
+	if (fix->fields & LOCATION_GPS_DEVICE_TRACK_SET)
+		gconf_client_set_float(client, GCONF_LK_TRK, fix->track, NULL);
+	else
+		gconf_client_unset(client, GCONF_LK_TRK, NULL);
+
+	if (fix->fields & LOCATION_GPS_DEVICE_SPEED_SET)
+		gconf_client_set_float(client, GCONF_LK_SPD, fix->speed, NULL);
+	else
+		gconf_client_unset(client, GCONF_LK_SPD, NULL);
+
+	if (fix->fields & LOCATION_GPS_DEVICE_CLIMB_SET)
+		gconf_client_set_float(client, GCONF_LK_CLB, fix->climb, NULL);
+	else
+		gconf_client_unset(client, GCONF_LK_CLB, NULL);
+
+	g_object_unref(client);
+}
+
+static void free_satellites_and_save_gconf(LocationGPSDevice *device)
+{
+	free_satellites(device);
+	store_lastknown_in_gconf(device);
+
+	// TODO: Return something? maybe the device pointer?
+}
+
+static void location_gps_device_class_init(LocationGPSDeviceClass *klass)
+{
+	/* GObjectClass *object_class = G_OBJECT_CLASS(klass); */
+
+	/* Supposed to call free_satellites_and_save_gconf() here? */
+
+	signals[DEVICE_CHANGED] = g_signal_new(
+			"changed",
+			LOCATION_TYPE_GPS_DEVICE,
+			G_SIGNAL_NO_RECURSE|G_SIGNAL_RUN_FIRST,
+			G_STRUCT_OFFSET(LocationGPSDeviceClass, changed),
+			0, NULL, g_cclosure_marshal_VOID__VOID,
+			G_TYPE_UCHAR, 0);
+
+	signals[DEVICE_CONNECTED] = g_signal_new(
+			"connected",
+			LOCATION_TYPE_GPS_DEVICE,
+			G_SIGNAL_NO_RECURSE|G_SIGNAL_RUN_FIRST,
+			G_STRUCT_OFFSET(LocationGPSDeviceClass, connected),
+			0, NULL, g_cclosure_marshal_VOID__VOID,
+			G_TYPE_UCHAR, 0);
+
+	signals[DEVICE_DISCONNECTED] = g_signal_new(
+			"disconnected",
+			LOCATION_TYPE_GPS_DEVICE,
+			G_SIGNAL_NO_RECURSE|G_SIGNAL_RUN_FIRST,
+			G_STRUCT_OFFSET(LocationGPSDeviceClass, disconnected),
+			0, NULL, g_cclosure_marshal_VOID__VOID,
+			G_TYPE_UCHAR, 0);
+}
+
+static void location_gps_device_init(LocationGPSDevice *device)
+{
+
+}
+
+
+/*
+GType location_gps_device_get_type(void)
+{
+	static volatile gsize g_define_type_id__volatile = 0;
+
+	if (g_once_init_enter(&g_define_type_id__volatile)) {
+		GType g_define_type_id = g_type_register_static_simple(
+				0x50u, // TODO
+				g_intern_static_string("LocationGPSDevice"),
+				0x50u, // TODO
+				(GClassInitFunc)location_gps_device_class_intern_init,
+				0x2Cu, // TODO
+				(GInstanceInitFunc)location_gps_device_init,
+				(GTypeFlags) 0);
+		g_once_init_leave(&g_define_type_id__volatile, g_define_type_id);
+	}
+
+	return g_define_type_id__volatile;
+}
+*/
+
 
 void location_gps_device_reset_last_known(LocationGPSDevice *device)
 {

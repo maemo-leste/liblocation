@@ -17,6 +17,7 @@
 #ifndef __GPS_DEVICE_H__
 #define __GPS_DEVICE_H__
 
+#include <dbus/dbus.h>
 #include <glib-object.h>
 
 G_BEGIN_DECLS
@@ -299,7 +300,7 @@ typedef struct _LocationGPSDeviceClass {
 	void (* disconnected) (LocationGPSDevice *device);
 } LocationGPSDeviceClass;
 
-GType location_gps_device_get_type (void);
+GType location_gps_device_get_type (void) G_GNUC_CONST;
 
 void location_gps_device_reset_last_known (LocationGPSDevice *device);
 

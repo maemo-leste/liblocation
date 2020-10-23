@@ -12,7 +12,7 @@ liblocation_la_SOURCES = \
 	location-version.h
 
 liblocation_la_CFLAGS = $(LIBLOCATION_CFLAGS) -Wall
-liblocation_la_LDFLAGS = -lm
+liblocation_la_LDFLAGS = -lm -Wl,--as-needed
 
 liblocationincludedir=$(includedir)
 liblocationinclude_HEADERS = \
