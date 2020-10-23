@@ -147,8 +147,8 @@ typedef struct _LocationGPSDControlPrivate LocationGPSDControlPrivate;
 typedef struct _LocationGPSDControl {
 	GObject parent;
 
-        /*< private >*/
-        LocationGPSDControlPrivate *priv;
+	/*< private >*/
+	LocationGPSDControlPrivate *priv;
 } LocationGPSDControl;
 
 /*
@@ -175,7 +175,7 @@ GType location_gpsd_control_get_type (void);
 
 /**
  * location_gpsd_control_get_default:
- * 
+ *
  * This function is an alias for creating
  * a new #LocationGPSDControl object. This used to return
  * a single instance of object, but not anymore as object
@@ -219,8 +219,8 @@ void location_gpsd_control_request_status (LocationGPSDControl *control);
  * location_gpsd_control_get_allowed_methods:
  * @control: The control context.
  *
- * This function reads current location settings and returns 
- * a bitmask of allowed location methods of type #LocationGPSDControlMethod. 
+ * This function reads current location settings and returns
+ * a bitmask of allowed location methods of type #LocationGPSDControlMethod.
  * Please note that you can also use methods, that are not currently
  * allowed. Location Framework will in this case prompt user a dialog to enable
  * necessary settings when location is started.
