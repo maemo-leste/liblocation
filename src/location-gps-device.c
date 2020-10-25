@@ -1,5 +1,6 @@
 #include <stdio.h>
 
+#include <dbus/dbus.h>
 #include <gconf/gconf-client.h>
 #include <glib.h>
 
@@ -101,6 +102,105 @@ static void free_satellites_and_save_gconf(LocationGPSDevice *device)
 	store_lastknown_in_gconf(device);
 
 	// TODO: Return something? maybe the device pointer?
+}
+
+/* TODO: Review if this is correct */
+static signed int iterate_dbus_struct_by_type(DBusMessageIter *iter, int type, ...)
+{
+	void **value;
+	va_list va, va_args;
+
+	va_start(va_args, type);
+	va_copy(va, va_args);
+
+	if (!type)
+		return 1;
+
+	while (type == dbus_message_iter_get_arg_type(iter)) {
+		dbus_message_iter_get_basic(iter, *value);
+		dbus_message_iter_next(iter);
+		if (!type)
+			return 1;
+	}
+
+	va_end(va_args);
+
+	/* g_log("liblocation", G_LOG_LEVEL_WARNING, "Got %d, expected %d"); */
+	return 0;
+}
+
+static int emit_some_signal(LocationGPSDevice *device)
+{
+#if 0
+	(device->priv + 41) = 0;
+	g_signal_emit(device, 666, 0); // 666 is dword_FD1C
+	g_object_unref(device);
+#endif
+	return 0;
+}
+
+/* LocationGPSDevice *add_g_timeout_interval(LocationGPSDevice *device) */
+static dbus_bool_t add_g_timeout_interval(LocationGPSDevice *device)
+{
+#if 0
+	if (!device->priv + 41) {
+		g_object_ref(device);
+		device = (LocationGPSDevice *)g_timeout_add(300,
+				(GSourceFunc)emit_some_signal, device);
+		(device->priv + 41) = 1;
+	}
+	return device;
+#endif
+	return TRUE;
+}
+
+static dbus_bool_t parse_satellite_info(LocationGPSDevice *device, DBusMessage *msg)
+{
+	dbus_bool_t result;
+	GPtrArray *satarray;
+	DBusMessageIter iter, sub, subsub;
+	int prn, in_use, elevation, azimuth, signal_strength;
+	LocationGPSDeviceSatellite *sat;
+
+	result = dbus_message_iter_init(msg, &iter);
+	if (result) {
+		result = dbus_message_iter_get_arg_type(&iter);
+		if (result == DBUS_TYPE_ARRAY) {
+			free_satellites(device);
+			satarray = g_ptr_array_new();
+			device->cell_info = NULL;
+			device->satellites = satarray;
+			dbus_message_iter_recurse(&iter, &sub);
+			while (dbus_message_iter_get_arg_type(&sub) == DBUS_TYPE_STRUCT) {
+				dbus_message_iter_recurse(&sub, &subsub);
+				if (iterate_dbus_struct_by_type(&subsub,
+							DBUS_TYPE_UINT32,  &prn,
+							DBUS_TYPE_BOOLEAN, &in_use,
+							DBUS_TYPE_UINT32,  &elevation,
+							DBUS_TYPE_UINT32,  &azimuth,
+							DBUS_TYPE_UINT32,  &signal_strength,
+							DBUS_TYPE_INVALID)) {
+					sat = g_malloc(sizeof(LocationGPSDeviceSatellite));
+					sat->prn = prn;
+					sat->in_use = in_use;
+					sat->elevation = elevation;
+					sat->azimuth = azimuth;
+					sat->signal_strength = signal_strength;
+					g_ptr_array_add(device->satellites, sat);
+					++device->satellites_in_view;
+					if (in_use)
+						++device->satellites_in_use;
+				} else {
+					g_log("liblocation", G_LOG_LEVEL_WARNING,
+							"Failed to parse satellite info from DBus-message!");
+				}
+				dbus_message_iter_next(&sub);
+			}
+			result = add_g_timeout_interval(device);
+		}
+	}
+
+	return result;
 }
 
 static void location_gps_device_class_init(LocationGPSDeviceClass *klass)
