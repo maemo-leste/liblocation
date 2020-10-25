@@ -25,6 +25,7 @@ static guint signals[LAST_SIGNAL] = {};
 struct _LocationGPSDevicePrivate {
 	DBusConnection *bus;
 	LocationGPSDeviceFix *fix;
+
 };
 
 G_DEFINE_TYPE_WITH_CODE (LocationGPSDevice,
@@ -196,7 +197,7 @@ void location_gps_device_reset_last_known(LocationGPSDevice *device)
 		g_object_unref(client);
 	} else {
 		g_return_if_fail_warning("liblocation",
-				"location_gps_device_reset_last_known",
+				G_STRFUNC,
 				"LOCATION_IS_GPS_DEVICE(device)");
 	}
 }
@@ -205,12 +206,12 @@ void location_gps_device_start(LocationGPSDevice *device)
 {
 	g_log("liblocation", G_LOG_LEVEL_WARNING,
 			"You don't need to call %s, it does nothing anymore!",
-			"location_gps_device_start");
+			G_STRFUNC);
 }
 
 void location_gps_device_stop(LocationGPSDevice *device)
 {
 	g_log("liblocation", G_LOG_LEVEL_WARNING,
 			"You don't need to call %s, it does nothing anymore!",
-			"location_gps_device_stop");
+			G_STRFUNC);
 }

@@ -24,7 +24,7 @@ void location_gpsd_control_request_status(LocationGPSDControl *control)
 {
 	g_log("liblocation", G_LOG_LEVEL_WARNING,
 			"You don't need to call %s, it does nothing anymore!",
-			"location_gpsd_control_request_status");
+			G_STRFUNC);
 }
 
 gint location_gpsd_control_get_allowed_methods(LocationGPSDControl *control)
