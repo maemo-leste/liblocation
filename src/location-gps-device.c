@@ -5,13 +5,14 @@
 
 #include "location-gps-device.h"
 
-#define GCONF_LK_TIME "/system/nokia/location/lastknown/time"
-#define GCONF_LK_LAT  "/system/nokia/location/lastknown/latitude"
-#define GCONF_LK_LON  "/system/nokia/location/lastknown/longitude"
-#define GCONF_LK_ALT  "/system/nokia/location/lastknown/altitude"
-#define GCONF_LK_TRK  "/system/nokia/location/lastknown/track"
-#define GCONF_LK_SPD  "/system/nokia/location/lastknown/speed"
-#define GCONF_LK_CLB  "/system/nokia/location/lastknown/climb"
+#define GCONF_LK       "/system/nokia/location/lastknown"
+#define GCONF_LK_TIME  GCONF_LK"/time"
+#define GCONF_LK_LAT   GCONF_LK"/latitude"
+#define GCONF_LK_LON   GCONF_LK"/longitude"
+#define GCONF_LK_ALT   GCONF_LK"/altitude"
+#define GCONF_LK_TRK   GCONF_LK"/track"
+#define GCONF_LK_SPD   GCONF_LK"/speed"
+#define GCONF_LK_CLB   GCONF_LK"/climb"
 
 enum {
 	DEVICE_CHANGED,
@@ -191,13 +192,11 @@ void location_gps_device_reset_last_known(LocationGPSDevice *device)
 
 		free_satellites(device);
 
-		gconf_client_recursive_unset(client,
-				"/system/nokia/location/lastknown", 0, NULL);
+		gconf_client_recursive_unset(client, GCONF_LK, 0, NULL);
 		/* TODO: g_signal_emit(device, SOME_SIGNAL_ID, 0); */
 		g_object_unref(client);
 	} else {
-		g_return_if_fail_warning("liblocation",
-				G_STRFUNC,
+		g_return_if_fail_warning("liblocation", G_STRFUNC,
 				"LOCATION_IS_GPS_DEVICE(device)");
 	}
 }
