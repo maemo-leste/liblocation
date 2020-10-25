@@ -28,7 +28,14 @@ static guint signals[LAST_SIGNAL] = {};
 struct _LocationGPSDevicePrivate {
 	DBusConnection *bus;
 	LocationGPSDeviceFix *fix;
-
+	guint32 fields;
+	double time;
+	double latitude;
+	double longitude;
+	double altitude;
+	double track;
+	double speed;
+	double climb;
 };
 
 G_DEFINE_TYPE_WITH_CODE (LocationGPSDevice,
