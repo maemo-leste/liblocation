@@ -1,3 +1,4 @@
+#include <math.h>
 #include <stdio.h>
 
 #include <dbus/dbus.h>
@@ -154,7 +155,160 @@ static dbus_bool_t add_g_timeout_interval(LocationGPSDevice *device)
 	return TRUE;
 }
 
-static dbus_bool_t parse_satellite_info(LocationGPSDevice *device, DBusMessage *msg)
+static dbus_bool_t set_fix_status(LocationGPSDevice *device, DBusMessage *msg)
+{
+	dbus_bool_t result;
+	LocationGPSDeviceFix *fix;
+	LocationGPSDeviceMode mode;
+
+	result = dbus_message_get_args(msg, NULL, DBUS_TYPE_INT32, &mode,
+			DBUS_TYPE_INVALID);
+
+	if (result) {
+		fix = device->fix;
+		device->status = mode > 1;
+		fix->mode = mode;
+		result = add_g_timeout_interval(device);
+	}
+
+	return result;
+}
+
+static dbus_bool_t set_position(LocationGPSDevice *device, DBusMessage *msg)
+{
+	dbus_bool_t result;
+	LocationGPSDeviceFix *fix;
+	double latitude, longitude, altitude;
+	int mode, time, v8;
+
+	result = dbus_message_get_args(msg, NULL, DBUS_TYPE_INT32, &mode,
+			DBUS_TYPE_INT32, &time, /* TODO: Maybe this should also be a double? */
+			DBUS_TYPE_DOUBLE, &latitude,
+			DBUS_TYPE_DOUBLE, &longitude,
+			DBUS_TYPE_DOUBLE, &altitude,
+			DBUS_TYPE_INVALID);
+
+	if (result) {
+		/* TODO: Review and use the enums */
+		if ((mode & 6) == 6) {
+			fix = device->fix;
+			fix->latitude = latitude;
+			v8 = fix->fields | 0x10;
+			fix->longitude = longitude;
+			fix->fields = v8;
+		} else {
+			fix = device->fix;
+			fix->fields &= 0xFFFFFFEF;
+		}
+
+		if (mode & 8) {
+			v8 = fix->fields | 1;
+			fix->altitude = altitude;
+			fix->fields = v8;
+		} else {
+			fix->fields &= 0xFFFFFFFE;
+		}
+
+		if (time) {
+			fix->fields |= 0x20u;
+			fix->time = (double)time;
+		} else {
+			fix->fields &= 0xFFFFFFDF;
+		}
+
+		result = add_g_timeout_interval(device);
+	}
+
+	return result;
+}
+
+static dbus_bool_t set_accuracy(LocationGPSDevice *device, DBusMessage *msg)
+{
+	dbus_bool_t result;
+	LocationGPSDeviceFix *fix;
+	double epv, eph, epd, epc, eps, v11;
+	int mode;
+
+	result = dbus_message_get_args(msg, NULL, DBUS_TYPE_INT32, &mode,
+			DBUS_TYPE_DOUBLE, &v11, /* TODO: figure out var name */
+			DBUS_TYPE_DOUBLE, &eps,
+			DBUS_TYPE_DOUBLE, &epc,
+			DBUS_TYPE_INVALID);
+
+	if (result) {
+		/* TODO: use enums */
+		if (mode & 2) {
+			eph = eps;
+			fix = device->fix;
+			epd = eps * 10.0;
+			fix->eps = eps * 10.0 / 10.0;
+			fix->eph = eph * 500.0;
+			fix->epd = atan(epd / 500.0);
+			if (!(mode & 4))
+				goto end;
+		} else {
+			fix = device->fix;
+			if (!(mode & 4))
+				goto end;
+		}
+
+		epv = epc * 5.0;
+		fix->epc = epc * 10.0 / 10.0;
+		fix->epv = epv;
+
+end:
+		fix->ept = 0.0;
+		result = add_g_timeout_interval(device);
+	}
+
+	return result;
+}
+
+static dbus_bool_t set_course(LocationGPSDevice *device, DBusMessage *msg)
+{
+	dbus_bool_t result;
+	LocationGPSDeviceFix *fix;
+	double climb, knots, track;
+	int mode, v14;
+	unsigned int fields;
+
+	result = dbus_message_get_args(msg, NULL, DBUS_TYPE_INT32, &mode,
+			DBUS_TYPE_INT32, v14, /* TODO: figure out var name */
+			DBUS_TYPE_DOUBLE, knots,
+			DBUS_TYPE_DOUBLE, track,
+			DBUS_TYPE_DOUBLE, climb,
+			DBUS_TYPE_INVALID);
+
+	if (result) {
+		/* TODO: Use enums */
+		fix = device->fix;
+		fields = fix->fields & 0xFFFFFFF1;
+		fix->fields = fields;
+
+		if (!((mode & 2) == 0)) {
+			fix->fields = fields | 2;
+			fix->speed = knots * 1.852;
+		}
+
+		if (mode & 4) {
+			fields = fix->fields | 4;
+			fix->track = track;
+			fix->fields = fields;
+		}
+
+		if (mode & 8) {
+			fields = fix->fields | 8;
+			fix->climb = climb;
+			fix->fields = fields;
+		}
+
+		result = add_g_timeout_interval(device);
+	}
+
+	return result;
+}
+
+static dbus_bool_t set_satellites(LocationGPSDevice *device, DBusMessage *msg)
 {
 	dbus_bool_t result;
 	GPtrArray *satarray;
@@ -163,6 +317,7 @@ static dbus_bool_t parse_satellite_info(LocationGPSDevice *device, DBusMessage *
 	LocationGPSDeviceSatellite *sat;
 
 	result = dbus_message_iter_init(msg, &iter);
+
 	if (result) {
 		result = dbus_message_iter_get_arg_type(&iter);
 		if (result == DBUS_TYPE_ARRAY) {
@@ -201,6 +356,93 @@ static dbus_bool_t parse_satellite_info(LocationGPSDevice *device, DBusMessage *
 	}
 
 	return result;
+}
+
+static void get_values_from_gypsy(LocationGPSDevice *device, const char *bus_name, char *type)
+{
+	DBusMessage *cmd, *msg;
+	gchar *str;
+
+	g_log("liblocation", G_LOG_LEVEL_DEBUG, "Loading initial values from %s::%s",
+			bus_name, type);
+
+	cmd = dbus_message_new_method_call(bus_name, "org/freedesktop/Gypsy",
+			"org.freedesktop.Gypsy.Server", "Create");
+	dbus_message_append_args(cmd, DBUS_TYPE_STRING, &type, DBUS_TYPE_INVALID);
+	msg = dbus_connection_send_with_reply_and_block(device->priv->bus, cmd,
+			DBUS_TIMEOUT_USE_DEFAULT, NULL);
+	dbus_message_unref(cmd);
+
+	if (msg) {
+		if (dbus_message_get_args(msg, NULL, DBUS_TYPE_OBJECT_PATH)) {
+			str = g_strdup(str);
+			dbus_message_unref(msg);
+			g_log("liblocation", G_LOG_LEVEL_DEBUG, "Object path: %s", str);
+
+			cmd = dbus_message_new_method_call(bus_name, str,
+					"org.freedesktop.Gypsy.Device", "GetFixStatus");
+			msg = dbus_connection_send_with_reply_and_block(device->priv->bus, cmd,
+					DBUS_TIMEOUT_USE_DEFAULT, NULL);
+			if (msg) {
+				set_fix_status(device, msg);
+				dbus_message_unref(msg);
+			}
+			dbus_message_unref(cmd);
+
+			cmd = dbus_message_new_method_call(bus_name, str,
+					"org.freedesktop.Gypsy.Position", "GetPosition");
+			msg = dbus_connection_send_with_reply_and_block(device->priv->bus, cmd,
+					DBUS_TIMEOUT_USE_DEFAULT, NULL);
+			if (msg) {
+				set_position(device, msg);
+				dbus_message_unref(msg);
+			}
+			dbus_message_unref(cmd);
+
+			cmd = dbus_message_new_method_call(bus_name, str,
+					"org.freedesktop.Gypsy.Accuracy", "GetAccuracy");
+			msg = dbus_connection_send_with_reply_and_block(device->priv->bus, cmd,
+					DBUS_TIMEOUT_USE_DEFAULT, NULL);
+			if (msg) {
+				set_accuracy(device, msg);
+				dbus_message_unref(msg);
+			}
+			dbus_message_unref(cmd);
+
+			cmd = dbus_message_new_method_call(bus_name, str,
+					"org.freedesktop.Gypsy.Course", "GetCourse");
+			msg = dbus_connection_send_with_reply_and_block(device->priv->bus, cmd,
+					DBUS_TIMEOUT_USE_DEFAULT, NULL);
+			if (msg) {
+				set_course(device, msg);
+				dbus_message_unref(msg);
+			}
+			dbus_message_unref(cmd);
+
+			cmd = dbus_message_new_method_call(bus_name, str,
+					"org.freedesktop.Gypsy.Satellite", "GetSatellites");
+			msg = dbus_connection_send_with_reply_and_block(device->priv->bus, cmd,
+					DBUS_TIMEOUT_USE_DEFAULT, NULL);
+			if (msg) {
+				set_satellites(device, msg);
+				dbus_message_unref(msg);
+			}
+			dbus_message_unref(cmd);
+
+			cmd = dbus_message_new_method_call(bus_name, "/org/freedesktop/Gypsy",
+					"org.freedesktop.Gypsy.Server", "Shutdown");
+			dbus_message_append_args(cmd, DBUS_TYPE_OBJECT_PATH, &str,
+					DBUS_TYPE_INVALID);
+			msg = dbus_connection_send_with_reply_and_block(device->priv->bus, cmd,
+					DBUS_TIMEOUT_USE_DEFAULT, NULL);
+			dbus_message_unref(cmd);
+			if (msg)
+				dbus_message_unref(msg);
+			g_free(str);
+		} else {
+			dbus_message_unref(msg);
+		}
+	}
 }
 
 static void location_gps_device_class_init(LocationGPSDeviceClass *klass)
