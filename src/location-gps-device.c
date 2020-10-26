@@ -485,7 +485,68 @@ static void location_gps_device_class_init(LocationGPSDeviceClass *klass)
 
 static void location_gps_device_init(LocationGPSDevice *device)
 {
+#if 0
+	GType d = LOCATION_TYPE_GPS_DEVICE(device);
+	LocationGPSDevicePrivate *priv;
+	GConfClient *client;
+	char *cdr_retloc, *car_retloc;
 
+	priv = g_type_instance_get_private(&device->parent.g_type_instance, d);
+	device->priv = priv;
+	priv->bus = dbus_bus_get_private(DBUS_BUS_SYSTEM, NULL);
+	dbus_connection_setup_with_g_main(priv->bus, 0);
+
+	if (priv->bus) {
+		dbus_bus_add_match(priv->bus,
+				"type='signal',interface='org.freedesktop.Gypsy.Device'", NULL);
+		dbus_bus_add_match(priv->bus,
+				"type='signal',interface='org.freedesktop.Gypsy.Position'", NULL);
+		dbus_bus_add_match(priv->bus,
+				"type='signal',interface='org.freedesktop.Gypsy.Course'", NULL);
+		dbus_bus_add_match(priv->bus,
+				"type='signal',interface='org.freedesktop.Gypsy.Satellite'", NULL);
+		dbus_bus_add_match(priv->bus,
+				"type='signal',interface='org.freedesktop.Gypsy.Accuracy'", NULL);
+		dbus_bus_add_match(priv->bus,
+				"type='signal',interface='com.nokia.Location.Cell'", NULL);
+		dbus_bus_add_match(priv->bus,
+				"type='signal',interface='com.nokia.Location.Uncertainty'", NULL);
+		dbus_connection_add_filter(priv->bus,
+				(DBusHandleMessageFunction)on_gypsy_signal, device, NULL);
+	}
+
+	priv = device->priv;
+	device->online = 0;
+	device->fix = priv->fix;
+	client = gconf_client_get_default();
+
+	/* TODO: Fill priv struct here */
+
+	g_object_unref(client);
+
+	if (dbus_bus_name_has_owner(priv->bus, "com.nokia.Location", NULL))
+		get_values_from_gypsy(device, "com.nokia.Location", "las");
+	else {
+		car_retloc = NULL;
+		cdr_retloc = NULL;
+		client = gconf_client_get_default();
+		if (gconf_client_get_pair(
+					client,
+					"/system/nokia/location/method",
+					GCONF_VALUE_STRING,
+					GCONF_VALUE_STRING,
+					&car_retloc,
+					&cdr_retloc,
+					NULL)) {
+
+			if (dbus_bus_name_has_owner(priv->bus, car_retloc, NULL))
+				get_values_from_gypsy(device, car_retloc, cdr_retloc);
+		}
+		g_object_unref(client);
+		g_free(car_retloc);
+		g_free(cdr_retloc);
+	}
+#endif
 }
 
 
