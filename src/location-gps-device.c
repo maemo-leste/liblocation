@@ -2,6 +2,7 @@
 #include <stdio.h>
 
 #include <dbus/dbus.h>
+#include <dbus/dbus-glib-lowlevel.h>
 #include <gconf/gconf-client.h>
 #include <glib.h>
 
@@ -38,12 +39,38 @@ struct _LocationGPSDevicePrivate {
 	double climb;
 };
 
-G_DEFINE_TYPE_WITH_CODE (LocationGPSDevice,
-		location_gps_device, G_TYPE_OBJECT,
-		G_ADD_PRIVATE(LocationGPSDevice))
+G_DEFINE_TYPE_WITH_PRIVATE(LocationGPSDevice, location_gps_device, G_TYPE_OBJECT);
 
-#define LOCATION_GPS_DEVICE_PRIVATE(device) \
-	((LocationGPSDevicePrivate *)location_gps_device_get_instance_private(device))
+static void location_gps_device_class_init(LocationGPSDeviceClass *klass)
+{
+	/* GObjectClass *object_class = G_OBJECT_CLASS(klass); */
+
+	/* Supposed to call free_satellites_and_save_gconf() here? */
+
+	signals[DEVICE_CHANGED] = g_signal_new(
+			"changed",
+			LOCATION_TYPE_GPS_DEVICE,
+			G_SIGNAL_NO_RECURSE|G_SIGNAL_RUN_FIRST,
+			G_STRUCT_OFFSET(LocationGPSDeviceClass, changed),
+			0, NULL, g_cclosure_marshal_VOID__VOID,
+			G_TYPE_UCHAR, 0);
+
+	signals[DEVICE_CONNECTED] = g_signal_new(
+			"connected",
+			LOCATION_TYPE_GPS_DEVICE,
+			G_SIGNAL_NO_RECURSE|G_SIGNAL_RUN_FIRST,
+			G_STRUCT_OFFSET(LocationGPSDeviceClass, connected),
+			0, NULL, g_cclosure_marshal_VOID__VOID,
+			G_TYPE_UCHAR, 0);
+
+	signals[DEVICE_DISCONNECTED] = g_signal_new(
+			"disconnected",
+			LOCATION_TYPE_GPS_DEVICE,
+			G_SIGNAL_NO_RECURSE|G_SIGNAL_RUN_FIRST,
+			G_STRUCT_OFFSET(LocationGPSDeviceClass, disconnected),
+			0, NULL, g_cclosure_marshal_VOID__VOID,
+			G_TYPE_UCHAR, 0);
+}
 
 GPtrArray *free_satellites(LocationGPSDevice *device)
 {
@@ -280,10 +307,10 @@ static dbus_bool_t set_course(LocationGPSDevice *device, DBusMessage *msg)
 	unsigned int fields;
 
 	result = dbus_message_get_args(msg, NULL, DBUS_TYPE_INT32, &mode,
-			DBUS_TYPE_INT32, v14, /* TODO: figure out var name */
-			DBUS_TYPE_DOUBLE, knots,
-			DBUS_TYPE_DOUBLE, track,
-			DBUS_TYPE_DOUBLE, climb,
+			DBUS_TYPE_INT32, &v14, /* TODO: figure out var name */
+			DBUS_TYPE_DOUBLE, &knots,
+			DBUS_TYPE_DOUBLE, &track,
+			DBUS_TYPE_DOUBLE, &climb,
 			DBUS_TYPE_INVALID);
 
 	if (result) {
@@ -452,49 +479,120 @@ static void get_values_from_gypsy(LocationGPSDevice *device, const char *bus_nam
 	}
 }
 
-static void location_gps_device_class_init(LocationGPSDeviceClass *klass)
+static signed int on_gypsy_signal(int a1, DBusMessage *signal_recv, LocationGPSDevice *device)
 {
-	/* GObjectClass *object_class = G_OBJECT_CLASS(klass); */
+	/* LocationGPSDevicePrivate *priv; */
+	/* DBusError error; */
+	gboolean online;
+	unsigned int fix_fields;
+	/* signed int v7; */
+	double ept, eph, epv, epd, eps, epc;
 
-	/* Supposed to call free_satellites_and_save_gconf() here? */
+	/* priv = G_TYPE_INSTANCE_GET_PRIVATE(device, G_TYPE_OBJECT, LocationGPSDevicePrivate); */
+	if (LOCATION_IS_GPS_DEVICE(device)) {
+		if (dbus_message_is_signal(signal_recv, "org.freedesktop.Gypsy.Position",
+					"PositionChanged")) {
+			set_position(device, signal_recv);
+			return 1;
+		}
+	} else {
+		g_assertion_message_expr("liblocation", __FILE__, __LINE__,
+				G_STRFUNC, "LOCATION_IS_GPS_DEVICE(device)");
+	}
 
-	signals[DEVICE_CHANGED] = g_signal_new(
-			"changed",
-			LOCATION_TYPE_GPS_DEVICE,
-			G_SIGNAL_NO_RECURSE|G_SIGNAL_RUN_FIRST,
-			G_STRUCT_OFFSET(LocationGPSDeviceClass, changed),
-			0, NULL, g_cclosure_marshal_VOID__VOID,
-			G_TYPE_UCHAR, 0);
+	if (dbus_message_is_signal(signal_recv, "org.freedesktop.Gypsy.Course",
+				"CourseChanged")) {
+		set_course(device, signal_recv);
+		return 1;
+	}
 
-	signals[DEVICE_CONNECTED] = g_signal_new(
-			"connected",
-			LOCATION_TYPE_GPS_DEVICE,
-			G_SIGNAL_NO_RECURSE|G_SIGNAL_RUN_FIRST,
-			G_STRUCT_OFFSET(LocationGPSDeviceClass, connected),
-			0, NULL, g_cclosure_marshal_VOID__VOID,
-			G_TYPE_UCHAR, 0);
+	if (dbus_message_is_signal(signal_recv, "org.freedesktop.Gypsy.Satellite",
+				"SatellitesChanged")) {
+		set_satellites(device, signal_recv);
+		return 1;
+	}
 
-	signals[DEVICE_DISCONNECTED] = g_signal_new(
-			"disconnected",
-			LOCATION_TYPE_GPS_DEVICE,
-			G_SIGNAL_NO_RECURSE|G_SIGNAL_RUN_FIRST,
-			G_STRUCT_OFFSET(LocationGPSDeviceClass, disconnected),
-			0, NULL, g_cclosure_marshal_VOID__VOID,
-			G_TYPE_UCHAR, 0);
+	if (!dbus_message_is_signal(signal_recv, "org.freedesktop.Gypsy.Device",
+				"ConnectionStatusChanged")) {
+		if (dbus_message_is_signal(signal_recv, "org.freedesktop.Gypsy.Device",
+					"FixStatusChanged")) {
+			set_fix_status(device, signal_recv);
+			return 1;
+		}
+
+		if (dbus_message_is_signal(signal_recv, "org.freedesktop.Gypsy.Device",
+					"AccuracyChanged")) {
+			set_accuracy(device, signal_recv);
+			return 1;
+		}
+
+		/* TODO:
+		if (dbus_message_is_signal(signal_recv, "com.nokia.Location.Cell",
+					"CellInfoChanged")) {
+		} else {
+		*/
+			if (!dbus_message_is_signal(signal_recv, "com.nokia.Location.Uncertainty",
+						"UncertaintyChanged") ||
+					!dbus_message_get_args(signal_recv, NULL,
+						DBUS_TYPE_INT32, &fix_fields,
+						DBUS_TYPE_DOUBLE, &ept,
+						DBUS_TYPE_DOUBLE, &eph,
+						DBUS_TYPE_DOUBLE, &epv,
+						DBUS_TYPE_DOUBLE, &epd,
+						DBUS_TYPE_DOUBLE, &eps,
+						DBUS_TYPE_DOUBLE, &epc,
+						DBUS_TYPE_INVALID)) {
+				return 1;
+			}
+			/* TODO: Use enums? */
+			if (fix_fields & 1)
+				device->fix->ept = ept;
+			if (fix_fields & 2)
+				device->fix->eph = eph;
+			if (fix_fields & 4)
+				device->fix->epv = epv * 0.5;
+			if (fix_fields & 8)
+				device->fix->epd = epd * 0.01;
+			if (fix_fields & 0x10)
+				device->fix->eps = eps * 0.036;
+			if (fix_fields & 0x20)
+				device->fix->epc = epc * 0.01;
+		/* } */
+		add_g_timeout_interval(device);
+		return 1;
+	}
+
+	if (dbus_message_get_args(signal_recv, NULL, DBUS_TYPE_BOOLEAN, &online,
+				DBUS_TYPE_INVALID)) {
+		/* TODO: Figure out var name (and enum?) */
+		/*
+		if (online)
+			v7 = 2;
+		else
+			v7 = 3;
+		*/
+
+		device->online = online;
+		/* v8 = dword_FD1C[v7] */
+		device->status = LOCATION_GPS_DEVICE_STATUS_FIX;
+		/* g_signal_emit(device, v8, 0); */
+		if (!online)
+			store_lastknown_in_gconf(device);
+	}
+
+	return 1;
 }
 
 static void location_gps_device_init(LocationGPSDevice *device)
 {
-#if 0
-	GType d = LOCATION_TYPE_GPS_DEVICE(device);
 	LocationGPSDevicePrivate *priv;
 	GConfClient *client;
 	char *cdr_retloc, *car_retloc;
 
-	priv = g_type_instance_get_private(&device->parent.g_type_instance, d);
+	priv = G_TYPE_INSTANCE_GET_PRIVATE(device, G_TYPE_OBJECT, LocationGPSDevicePrivate);
 	device->priv = priv;
 	priv->bus = dbus_bus_get_private(DBUS_BUS_SYSTEM, NULL);
-	dbus_connection_setup_with_g_main(priv->bus, 0);
+	dbus_connection_setup_with_g_main(priv->bus, NULL);
 
 	if (priv->bus) {
 		dbus_bus_add_match(priv->bus,
@@ -546,31 +644,7 @@ static void location_gps_device_init(LocationGPSDevice *device)
 		g_free(car_retloc);
 		g_free(cdr_retloc);
 	}
-#endif
 }
-
-
-/*
-GType location_gps_device_get_type(void)
-{
-	static volatile gsize g_define_type_id__volatile = 0;
-
-	if (g_once_init_enter(&g_define_type_id__volatile)) {
-		GType g_define_type_id = g_type_register_static_simple(
-				0x50u, // TODO
-				g_intern_static_string("LocationGPSDevice"),
-				0x50u, // TODO
-				(GClassInitFunc)location_gps_device_class_intern_init,
-				0x2Cu, // TODO
-				(GInstanceInitFunc)location_gps_device_init,
-				(GTypeFlags) 0);
-		g_once_init_leave(&g_define_type_id__volatile, g_define_type_id);
-	}
-
-	return g_define_type_id__volatile;
-}
-*/
-
 
 void location_gps_device_reset_last_known(LocationGPSDevice *device)
 {
