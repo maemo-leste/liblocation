@@ -657,7 +657,7 @@ static void location_gps_device_init(LocationGPSDevice *device)
 	device->online = 0;
 	device->fix = (LocationGPSDeviceFix *)&priv->fix;
 	client = gconf_client_get_default();
-	priv->fields = 0;
+	priv->fields = LOCATION_GPS_DEVICE_NONE_SET;
 	priv->fix = LOCATION_GPS_DEVICE_STATUS_NO_FIX;
 	priv->ept = LOCATION_GPS_DEVICE_NAN;
 	priv->eph = LOCATION_GPS_DEVICE_NAN;
@@ -670,35 +670,35 @@ static void location_gps_device_init(LocationGPSDevice *device)
 	priv->dip = LOCATION_GPS_DEVICE_NAN;
 
 	if (gconf_get_float(client, &priv->time, GCONF_LK_TIME))
-		priv->fields |= 0x20u;
+		priv->fields |= LOCATION_GPS_DEVICE_TIME_SET;
 	else
 		priv->time = LOCATION_GPS_DEVICE_NAN;
 
 	if (gconf_get_float(client, &priv->latitude, GCONF_LK_LAT)
 			&& gconf_get_float(client, &priv->longitude, GCONF_LK_LON))
-		priv->fields |= 0x10u;
+		priv->fields |= LOCATION_GPS_DEVICE_LATLONG_SET;
 	else {
 		priv->latitude = LOCATION_GPS_DEVICE_NAN;
 		priv->longitude = LOCATION_GPS_DEVICE_NAN;
 	}
 
 	if (gconf_get_float(client, &priv->altitude, GCONF_LK_ALT))
-		priv->fields |= 1u;
+		priv->fields |= LOCATION_GPS_DEVICE_ALTITUDE_SET;
 	else
 		priv->altitude = LOCATION_GPS_DEVICE_NAN;
 
 	if (gconf_get_float(client, &priv->track, GCONF_LK_TRK))
-		priv->fields |= 4u;
+		priv->fields |= LOCATION_GPS_DEVICE_TRACK_SET;
 	else
 		priv->track = LOCATION_GPS_DEVICE_NAN;
 
 	if (gconf_get_float(client, &priv->speed, GCONF_LK_SPD))
-		priv->fields |= 2u;
+		priv->fields |= LOCATION_GPS_DEVICE_SPEED_SET;
 	else
 		priv->speed = LOCATION_GPS_DEVICE_NAN;
 
 	if (gconf_get_float(client, &priv->climb, GCONF_LK_CLB))
-		priv->fields |= 8u;
+		priv->fields |= LOCATION_GPS_DEVICE_CLIMB_SET;
 	else
 		priv->climb = LOCATION_GPS_DEVICE_NAN;
 
