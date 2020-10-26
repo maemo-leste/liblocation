@@ -26,17 +26,28 @@ enum {
 
 static guint signals[LAST_SIGNAL] = {};
 
-struct _LocationGPSDevicePrivate {
+struct _LocationGPSDevicePrivate
+{
 	DBusConnection *bus;
+	char *foo;
 	LocationGPSDeviceFix *fix;
 	guint32 fields;
 	double time;
+	double ept;
 	double latitude;
 	double longitude;
+	double eph;
 	double altitude;
+	double epv;
 	double track;
+	double epd;
 	double speed;
+	double eps;
 	double climb;
+	double epc;
+	double pitch;
+	double roll;
+	double dip;
 };
 
 G_DEFINE_TYPE_WITH_PRIVATE(LocationGPSDevice, location_gps_device, G_TYPE_OBJECT);
@@ -583,6 +594,25 @@ static signed int on_gypsy_signal(int a1, DBusMessage *signal_recv, LocationGPSD
 	return 1;
 }
 
+static int gconf_get_float(GConfClient *gclient, double *dest, const gchar *key)
+{
+	GConfValue *val;
+	int ret;
+
+	val = gconf_client_get(gclient, key, NULL);
+	if (!val)
+		return 0;
+
+	if (val->type == GCONF_VALUE_FLOAT) {
+		ret = 1;
+		*dest = gconf_value_get_float(val);
+	} else
+		ret = 0;
+
+	gconf_value_free(val);
+	return ret;
+}
+
 static void location_gps_device_init(LocationGPSDevice *device)
 {
 	LocationGPSDevicePrivate *priv;
@@ -615,10 +645,52 @@ static void location_gps_device_init(LocationGPSDevice *device)
 
 	priv = device->priv;
 	device->online = 0;
-	device->fix = priv->fix;
+	device->fix = (LocationGPSDeviceFix *)&priv->fix;
 	client = gconf_client_get_default();
+	priv->fields = 0;
+	priv->fix = LOCATION_GPS_DEVICE_STATUS_NO_FIX;
+	priv->ept = LOCATION_GPS_DEVICE_NAN;
+	priv->eph = LOCATION_GPS_DEVICE_NAN;
+	priv->epv = LOCATION_GPS_DEVICE_NAN;
+	priv->epd = LOCATION_GPS_DEVICE_NAN;
+	priv->eps = LOCATION_GPS_DEVICE_NAN;
+	priv->epc = LOCATION_GPS_DEVICE_NAN;
+	priv->pitch = LOCATION_GPS_DEVICE_NAN;
+	priv->roll = LOCATION_GPS_DEVICE_NAN;
+	priv->dip = LOCATION_GPS_DEVICE_NAN;
 
-	/* TODO: Fill priv struct here */
+	if (gconf_get_float(client, &priv->time, GCONF_LK_TIME))
+		priv->fields |= 0x20u;
+	else
+		priv->time = LOCATION_GPS_DEVICE_NAN;
+
+	if (gconf_get_float(client, &priv->latitude, GCONF_LK_LAT)
+			&& gconf_get_float(client, &priv->longitude, GCONF_LK_LON))
+		priv->fields |= 0x10u;
+	else {
+		priv->latitude = LOCATION_GPS_DEVICE_NAN;
+		priv->longitude = LOCATION_GPS_DEVICE_NAN;
+	}
+
+	if (gconf_get_float(client, &priv->altitude, GCONF_LK_ALT))
+		priv->fields |= 1u;
+	else
+		priv->altitude = LOCATION_GPS_DEVICE_NAN;
+
+	if (gconf_get_float(client, &priv->track, GCONF_LK_TRK))
+		priv->fields |= 4u;
+	else
+		priv->track = LOCATION_GPS_DEVICE_NAN;
+
+	if (gconf_get_float(client, &priv->speed, GCONF_LK_SPD))
+		priv->fields |= 2u;
+	else
+		priv->speed = LOCATION_GPS_DEVICE_NAN;
+
+	if (gconf_get_float(client, &priv->climb, GCONF_LK_CLB))
+		priv->fields |= 8u;
+	else
+		priv->climb = LOCATION_GPS_DEVICE_NAN;
 
 	g_object_unref(client);
 
@@ -657,22 +729,22 @@ void location_gps_device_reset_last_known(LocationGPSDevice *device)
 		fix = device->fix;
 		fix->mode = 0;
 		fix->fields = 0;
-		fix->dip = 0.0 / 0.0;
-		fix->time = 0.0 / 0.0;
-		fix->ept = 0.0 / 0.0;
-		fix->latitude = 0.0 / 0.0;
-		fix->longitude = 0.0 / 0.0;
-		fix->eph = 0.0 / 0.0;
-		fix->altitude = 0.0 / 0.0;
-		fix->epv = 0.0 / 0.0;
-		fix->track = 0.0 / 0.0;
-		fix->epd = 0.0 / 0.0;
-		fix->speed = 0.0 / 0.0;
-		fix->eps = 0.0 / 0.0;
-		fix->climb = 0.0 / 0.0;
-		fix->epc = 0.0 / 0.0;
-		fix->pitch = 0.0 / 0.0;
-		fix->roll = 0.0 / 0.0;
+		fix->dip = LOCATION_GPS_DEVICE_NAN;
+		fix->time = LOCATION_GPS_DEVICE_NAN;
+		fix->ept = LOCATION_GPS_DEVICE_NAN;
+		fix->latitude = LOCATION_GPS_DEVICE_NAN;
+		fix->longitude = LOCATION_GPS_DEVICE_NAN;
+		fix->eph = LOCATION_GPS_DEVICE_NAN;
+		fix->altitude = LOCATION_GPS_DEVICE_NAN;
+		fix->epv = LOCATION_GPS_DEVICE_NAN;
+		fix->track = LOCATION_GPS_DEVICE_NAN;
+		fix->epd = LOCATION_GPS_DEVICE_NAN;
+		fix->speed = LOCATION_GPS_DEVICE_NAN;
+		fix->eps = LOCATION_GPS_DEVICE_NAN;
+		fix->climb = LOCATION_GPS_DEVICE_NAN;
+		fix->epc = LOCATION_GPS_DEVICE_NAN;
+		fix->pitch = LOCATION_GPS_DEVICE_NAN;
+		fix->roll = LOCATION_GPS_DEVICE_NAN;
 
 		free_satellites(device);
 
