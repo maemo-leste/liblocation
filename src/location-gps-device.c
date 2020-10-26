@@ -48,40 +48,15 @@ struct _LocationGPSDevicePrivate
 	double pitch;
 	double roll;
 	double dip;
+	char *bar;
+	char *baz;
+	char *foo1;
+	char *foo2;
+	char *foo3;
+	gboolean foo4;
 };
 
 G_DEFINE_TYPE_WITH_PRIVATE(LocationGPSDevice, location_gps_device, G_TYPE_OBJECT);
-
-static void location_gps_device_class_init(LocationGPSDeviceClass *klass)
-{
-	/* GObjectClass *object_class = G_OBJECT_CLASS(klass); */
-
-	/* Supposed to call free_satellites_and_save_gconf() here? */
-
-	signals[DEVICE_CHANGED] = g_signal_new(
-			"changed",
-			LOCATION_TYPE_GPS_DEVICE,
-			G_SIGNAL_NO_RECURSE|G_SIGNAL_RUN_FIRST,
-			G_STRUCT_OFFSET(LocationGPSDeviceClass, changed),
-			0, NULL, g_cclosure_marshal_VOID__VOID,
-			G_TYPE_UCHAR, 0);
-
-	signals[DEVICE_CONNECTED] = g_signal_new(
-			"connected",
-			LOCATION_TYPE_GPS_DEVICE,
-			G_SIGNAL_NO_RECURSE|G_SIGNAL_RUN_FIRST,
-			G_STRUCT_OFFSET(LocationGPSDeviceClass, connected),
-			0, NULL, g_cclosure_marshal_VOID__VOID,
-			G_TYPE_UCHAR, 0);
-
-	signals[DEVICE_DISCONNECTED] = g_signal_new(
-			"disconnected",
-			LOCATION_TYPE_GPS_DEVICE,
-			G_SIGNAL_NO_RECURSE|G_SIGNAL_RUN_FIRST,
-			G_STRUCT_OFFSET(LocationGPSDeviceClass, disconnected),
-			0, NULL, g_cclosure_marshal_VOID__VOID,
-			G_TYPE_UCHAR, 0);
-}
 
 GPtrArray *free_satellites(LocationGPSDevice *device)
 {
@@ -142,17 +117,16 @@ static void store_lastknown_in_gconf(LocationGPSDevice *device)
 	g_object_unref(client);
 }
 
-static void free_satellites_and_save_gconf(LocationGPSDevice *device)
+void free_satellites_and_save_gconf(LocationGPSDevice *device)
 {
 	free_satellites(device);
 	store_lastknown_in_gconf(device);
-
-	// TODO: Return something? maybe the device pointer?
+	/* TODO: Return something here? */
 }
 
-/* TODO: Review if this is correct */
 static signed int iterate_dbus_struct_by_type(DBusMessageIter *iter, int type, ...)
 {
+	/* TODO: Review if this function is correct */
 	void **value = NULL;
 	va_list va, va_args;
 
@@ -175,29 +149,23 @@ static signed int iterate_dbus_struct_by_type(DBusMessageIter *iter, int type, .
 	return 0;
 }
 
-static int emit_some_signal(LocationGPSDevice *device)
+static int signal_changed(LocationGPSDevice *device)
 {
-#if 0
-	(device->priv + 41) = 0;
-	g_signal_emit(device, 666, 0); // 666 is dword_FD1C
+	device->priv->foo4 = FALSE;
+	g_signal_emit(device, signals[DEVICE_CHANGED], 0);
 	g_object_unref(device);
-#endif
 	return 0;
 }
 
-/* LocationGPSDevice *add_g_timeout_interval(LocationGPSDevice *device) */
-static dbus_bool_t add_g_timeout_interval(LocationGPSDevice *device)
+LocationGPSDevice *add_g_timeout_interval(LocationGPSDevice *device)
 {
-#if 0
-	if (!device->priv + 41) {
+	if (!device->priv->foo4) {
 		g_object_ref(device);
 		device = (LocationGPSDevice *)g_timeout_add(300,
-				(GSourceFunc)emit_some_signal, device);
-		(device->priv + 41) = 1;
+				(GSourceFunc)signal_changed, device);
+		device->priv->foo4 = TRUE;
 	}
 	return device;
-#endif
-	return TRUE;
 }
 
 static dbus_bool_t set_fix_status(LocationGPSDevice *device, DBusMessage *msg)
@@ -213,7 +181,9 @@ static dbus_bool_t set_fix_status(LocationGPSDevice *device, DBusMessage *msg)
 		fix = device->fix;
 		device->status = mode > 1;
 		fix->mode = mode;
-		result = add_g_timeout_interval(device);
+		/* TODO: Why is this function being cast like this and returned? */
+		// result = (dbus_bool_t)add_g_timeout_interval(device);
+		add_g_timeout_interval(device);
 	}
 
 	return result;
@@ -260,8 +230,9 @@ static dbus_bool_t set_position(LocationGPSDevice *device, DBusMessage *msg)
 		} else {
 			fix->fields &= 0xFFFFFFDF;
 		}
-
-		result = add_g_timeout_interval(device);
+		/* TODO: Why is this function being cast like this and returned? */
+		// result = (dbus_bool_t)add_g_timeout_interval(device);
+		add_g_timeout_interval(device);
 	}
 
 	return result;
@@ -303,7 +274,9 @@ static dbus_bool_t set_accuracy(LocationGPSDevice *device, DBusMessage *msg)
 
 end:
 		fix->ept = 0.0;
-		result = add_g_timeout_interval(device);
+		/* TODO: Why is this function being cast like this and returned? */
+		// result = (dbus_bool_t)add_g_timeout_interval(device);
+		add_g_timeout_interval(device);
 	}
 
 	return result;
@@ -346,8 +319,9 @@ static dbus_bool_t set_course(LocationGPSDevice *device, DBusMessage *msg)
 			fix->climb = climb;
 			fix->fields = fields;
 		}
-
-		result = add_g_timeout_interval(device);
+		/* TODO: Why is this function being cast like this and returned? */
+		// result = (dbus_bool_t)add_g_timeout_interval(device);
+		add_g_timeout_interval(device);
 	}
 
 	return result;
@@ -396,7 +370,9 @@ static dbus_bool_t set_satellites(LocationGPSDevice *device, DBusMessage *msg)
 				}
 				dbus_message_iter_next(&sub);
 			}
-			result = add_g_timeout_interval(device);
+			/* TODO: Why is this function being cast like this and returned? */
+			// result = (dbus_bool_t)add_g_timeout_interval(device);
+			add_g_timeout_interval(device);
 		}
 	}
 
@@ -584,9 +560,8 @@ static signed int on_gypsy_signal(int a1, DBusMessage *signal_recv, LocationGPSD
 		*/
 
 		device->online = online;
-		/* v8 = dword_FD1C[v7] */
 		device->status = LOCATION_GPS_DEVICE_STATUS_FIX;
-		/* g_signal_emit(device, v8, 0); */
+		g_signal_emit(device, signals[DEVICE_CHANGED], 0);
 		if (!online)
 			store_lastknown_in_gconf(device);
 	}
@@ -611,6 +586,41 @@ static int gconf_get_float(GConfClient *gclient, double *dest, const gchar *key)
 
 	gconf_value_free(val);
 	return ret;
+}
+
+static void location_gps_device_class_init(LocationGPSDeviceClass *klass)
+{
+	/*
+	gpointer parent;
+	parent = g_type_class_peek_parent(klass);
+	*/
+
+	klass->parent_class.finalize = (void (*)(GObject *))free_satellites_and_save_gconf;
+	/* klass->parent_class.dispose = (void (*)(GObject *))&loc_3D18; */
+
+	signals[DEVICE_CHANGED] = g_signal_new(
+			"changed",
+			LOCATION_TYPE_GPS_DEVICE,
+			G_SIGNAL_NO_RECURSE|G_SIGNAL_RUN_FIRST,
+			G_STRUCT_OFFSET(LocationGPSDeviceClass, changed),
+			0, NULL, g_cclosure_marshal_VOID__VOID,
+			G_TYPE_UCHAR, 0);
+
+	signals[DEVICE_CONNECTED] = g_signal_new(
+			"connected",
+			LOCATION_TYPE_GPS_DEVICE,
+			G_SIGNAL_NO_RECURSE|G_SIGNAL_RUN_FIRST,
+			G_STRUCT_OFFSET(LocationGPSDeviceClass, connected),
+			0, NULL, g_cclosure_marshal_VOID__VOID,
+			G_TYPE_UCHAR, 0);
+
+	signals[DEVICE_DISCONNECTED] = g_signal_new(
+			"disconnected",
+			LOCATION_TYPE_GPS_DEVICE,
+			G_SIGNAL_NO_RECURSE|G_SIGNAL_RUN_FIRST,
+			G_STRUCT_OFFSET(LocationGPSDeviceClass, disconnected),
+			0, NULL, g_cclosure_marshal_VOID__VOID,
+			G_TYPE_UCHAR, 0);
 }
 
 static void location_gps_device_init(LocationGPSDevice *device)
@@ -749,7 +759,7 @@ void location_gps_device_reset_last_known(LocationGPSDevice *device)
 		free_satellites(device);
 
 		gconf_client_recursive_unset(client, GCONF_LK, 0, NULL);
-		/* TODO: g_signal_emit(device, SOME_SIGNAL_ID, 0); */
+		g_signal_emit(device, signals[DEVICE_CHANGED], 0);
 		g_object_unref(client);
 	} else {
 		g_return_if_fail_warning("liblocation", G_STRFUNC,
