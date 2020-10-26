@@ -142,7 +142,7 @@ static void free_satellites_and_save_gconf(LocationGPSDevice *device)
 /* TODO: Review if this is correct */
 static signed int iterate_dbus_struct_by_type(DBusMessageIter *iter, int type, ...)
 {
-	void **value;
+	void **value = NULL;
 	va_list va, va_args;
 
 	va_start(va_args, type);
