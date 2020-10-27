@@ -4,6 +4,12 @@
 
 #include "location-gpsd-control.h"
 
+#define GCONF_LOC                  "/system/nokia/location"
+#define GCONF_METHOD               GCONF_LOC"/method"
+#define GCONF_GPS_DISABLED         GCONF_LOC"/gps-disabled"
+#define GCONF_NET_DISABLED         GCONF_LOC"/network-disabled"
+#define GCONF_DISCLAIMER_ACCEPTED  GCONF_LOC"/disclaimer-accepted"
+
 enum {
 	ERROR,
 	ERROR_VERBOSE,
@@ -162,7 +168,7 @@ static void location_gpsd_control_class_init(LocationGPSDControlClass *klass)
 			15,
 			0,
 			G_PARAM_WRITABLE|G_PARAM_READABLE);
-	g_object_class_install_property(&klass->parent_class, 1u, method);
+	g_object_class_install_property(&klass->parent_class, 1, method);
 
 	interval = g_param_spec_int("preferred-interval",
 			"Preferred interval",
@@ -171,11 +177,74 @@ static void location_gpsd_control_class_init(LocationGPSDControlClass *klass)
 			0x7FFFFFFF,
 			-1,
 			G_PARAM_WRITABLE|G_PARAM_READABLE);
-	g_object_class_install_property(&klass->parent_class, 2u, interval);
+	g_object_class_install_property(&klass->parent_class, 2, interval);
 
 	maincontext = g_param_spec_pointer("maincontext-pointer",
 			"The pointer to the GMainContext instance",
 			"Set the main context address",
 			G_PARAM_WRITABLE);
-	g_object_class_install_property(&klass->parent_class, 3u, maincontext);
+	g_object_class_install_property(&klass->parent_class, 3, maincontext);
+}
+
+static void device_mode_change_cb(int a1, const gchar *sig, LocationGPSDControl *control)
+{
+	LocationGPSDControlPrivate *priv;
+	gchar *device_mode, *_sig;
+
+	priv = control->priv;
+	device_mode = priv->device_mode;
+	_sig = g_strdup(sig);
+	priv = control->priv;
+	priv->device_mode = _sig;
+
+	if (priv->p2 && g_strcmp0(device_mode, priv->device_mode)) {
+		dbus_proxy_shutdown((int)&control->priv->p2);
+		location_gpsd_control_prestart_internal(control, TRUE);
+	}
+
+	g_free(device_mode);
+}
+
+static void location_gpsd_control_init(LocationGPSDControl *control)
+{
+	LocationGPSDControlPrivate *priv;
+	DBusGConnection *dbus_conn;
+	DBusGProxy *proxy;
+	GConfValue *method;
+
+	priv = G_TYPE_INSTANCE_GET_PRIVATE(control, G_TYPE_OBJECT, LocationGPSDControlPrivate);
+	control->priv = priv;
+
+	priv->p16 = NULL;
+	priv->p17 = NULL;
+
+	priv->client = gconf_client_get_default();
+	dbus_conn = dbus_g_bus_get(DBUS_BUS_SYSTEM, NULL);
+	priv->bus = dbus_g_connection_ref(dbus_conn);
+
+	priv->gps_disabled = gconf_client_get_bool(priv->client, GCONF_GPS_DISABLED, NULL);
+	priv->net_disabled = gconf_client_get_bool(priv->client, GCONF_NET_DISABLED, NULL);
+	priv->disclaimer_accepted = gconf_client_get_bool(priv->client,
+			GCONF_DISCLAIMER_ACCEPTED, NULL);
+
+	method = gconf_client_get(priv->client, GCONF_METHOD, NULL);
+	if (method) {
+		get_location_method(control, method);
+		gconf_value_free(method);
+	}
+
+	gconf_client_add_dir(priv->client, GCONF_LOC, GCONF_CLIENT_PRELOAD_NONE, NULL);
+
+	priv->client_id = gconf_client_notify_add(priv->client, GCONF_LOC,
+			NULL, // (GConfClientNotifyFunc)&loc_6380,
+			control,
+			NULL,
+			NULL);
+
+	proxy = dbus_g_proxy_new_for_name(priv->bus, "com.nokia.mce",
+			"/com/nokia/mce/signal", "com.nokia.mce.signal");
+	dbus_g_proxy_add_signal(proxy, "sig_device_mode_ind", 0x40u, NULL);
+	dbus_g_proxy_connect_signal(proxy, "sig_device_mode_ind",
+			(GCallback)device_mode_change_cb, control, NULL);
+	priv->proxy = proxy;
 }
