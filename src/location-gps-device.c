@@ -194,7 +194,7 @@ static dbus_bool_t set_position(LocationGPSDevice *device, DBusMessage *msg)
 	dbus_bool_t result;
 	LocationGPSDeviceFix *fix;
 	double latitude, longitude, altitude;
-	int mode, time, v8;
+	int mode, time;
 
 	result = dbus_message_get_args(msg, NULL, DBUS_TYPE_INT32, &mode,
 			DBUS_TYPE_INT32, &time, /* TODO: Maybe this should also be a double? */
@@ -204,31 +204,28 @@ static dbus_bool_t set_position(LocationGPSDevice *device, DBusMessage *msg)
 			DBUS_TYPE_INVALID);
 
 	if (result) {
-		/* TODO: Review and use the enums */
-		if ((mode & 6) == 6) {
+		if (mode & LOCATION_GPS_DEVICE_MODE_2D) { /* if ((mode & 6) == 6) { */
 			fix = device->fix;
 			fix->latitude = latitude;
-			v8 = fix->fields | 0x10;
 			fix->longitude = longitude;
-			fix->fields = v8;
+			fix->fields |= LOCATION_GPS_DEVICE_LATLONG_SET;
 		} else {
 			fix = device->fix;
-			fix->fields &= 0xFFFFFFEF;
+			fix->fields &= LOCATION_GPS_DEVICE_LATLONG_SET;
 		}
 
-		if (mode & 8) {
-			v8 = fix->fields | 1;
+		if (mode & LOCATION_GPS_DEVICE_MODE_3D) { /* if (mode & 8) { */
 			fix->altitude = altitude;
-			fix->fields = v8;
+			fix->fields |= LOCATION_GPS_DEVICE_ALTITUDE_SET;
 		} else {
-			fix->fields &= 0xFFFFFFFE;
+			fix->fields &= LOCATION_GPS_DEVICE_ALTITUDE_SET;
 		}
 
 		if (time) {
-			fix->fields |= 0x20u;
+			fix->fields |= LOCATION_GPS_DEVICE_TIME_SET;
 			fix->time = (double)time;
 		} else {
-			fix->fields &= 0xFFFFFFDF;
+			fix->fields &= LOCATION_GPS_DEVICE_TIME_SET;
 		}
 		/* TODO: Why is this function being cast like this and returned? */
 		// result = (dbus_bool_t)add_g_timeout_interval(device);
@@ -298,7 +295,7 @@ static dbus_bool_t set_course(LocationGPSDevice *device, DBusMessage *msg)
 			DBUS_TYPE_INVALID);
 
 	if (result) {
-		/* TODO: Use enums */
+		/* TODO: Use enums?, simplify */
 		fix = device->fix;
 		fields = fix->fields & 0xFFFFFFF1;
 		fix->fields = fields;
@@ -309,15 +306,13 @@ static dbus_bool_t set_course(LocationGPSDevice *device, DBusMessage *msg)
 		}
 
 		if (mode & 4) {
-			fields = fix->fields | 4;
 			fix->track = track;
-			fix->fields = fields;
+			fix->fields |= 4;
 		}
 
 		if (mode & 8) {
-			fields = fix->fields | 8;
 			fix->climb = climb;
-			fix->fields = fields;
+			fix->fields |= 8;
 		}
 		/* TODO: Why is this function being cast like this and returned? */
 		// result = (dbus_bool_t)add_g_timeout_interval(device);
@@ -472,7 +467,6 @@ static signed int on_gypsy_signal(int a1, DBusMessage *signal_recv, LocationGPSD
 	/* DBusError error; */
 	gboolean online;
 	unsigned int fix_fields;
-	/* signed int v7; */
 	double ept, eph, epv, epd, eps, epc;
 
 	/* priv = G_TYPE_INSTANCE_GET_PRIVATE(device, G_TYPE_OBJECT, LocationGPSDevicePrivate); */
@@ -551,17 +545,15 @@ static signed int on_gypsy_signal(int a1, DBusMessage *signal_recv, LocationGPSD
 
 	if (dbus_message_get_args(signal_recv, NULL, DBUS_TYPE_BOOLEAN, &online,
 				DBUS_TYPE_INVALID)) {
-		/* TODO: Figure out var name (and enum?) */
-		/*
+		int sig;
 		if (online)
-			v7 = 2;
+			sig = DEVICE_CONNECTED;
 		else
-			v7 = 3;
-		*/
+			sig = DEVICE_DISCONNECTED;
 
 		device->online = online;
 		device->status = LOCATION_GPS_DEVICE_STATUS_FIX;
-		g_signal_emit(device, signals[DEVICE_CHANGED], 0);
+		g_signal_emit(device, signals[DEVICE_CHANGED+sig], 0);
 		if (!online)
 			store_lastknown_in_gconf(device);
 	}
@@ -735,10 +727,10 @@ void location_gps_device_reset_last_known(LocationGPSDevice *device)
 
 	if (LOCATION_IS_GPS_DEVICE(device)) {
 		client = gconf_client_get_default();
-		device->status = 0;
+		device->status = LOCATION_GPS_DEVICE_STATUS_NO_FIX;
 		fix = device->fix;
-		fix->mode = 0;
-		fix->fields = 0;
+		fix->mode = LOCATION_GPS_DEVICE_MODE_NOT_SEEN;;
+		fix->fields = LOCATION_GPS_DEVICE_NONE_SET;
 		fix->dip = LOCATION_GPS_DEVICE_NAN;
 		fix->time = LOCATION_GPS_DEVICE_NAN;
 		fix->ept = LOCATION_GPS_DEVICE_NAN;
