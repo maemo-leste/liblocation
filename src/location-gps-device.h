@@ -300,7 +300,7 @@ typedef struct _LocationGPSDeviceClass {
 	void (* disconnected) (LocationGPSDevice *device);
 } LocationGPSDeviceClass;
 
-GType location_gps_device_get_type (void) G_GNUC_CONST;
+GType location_gps_device_get_type (void);
 
 void location_gps_device_reset_last_known (LocationGPSDevice *device);
 
