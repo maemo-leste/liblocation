@@ -682,21 +682,21 @@ static void location_gps_device_class_init(LocationGPSDeviceClass *klass)
 			LOCATION_TYPE_GPS_DEVICE,
 			G_SIGNAL_NO_RECURSE|G_SIGNAL_RUN_FIRST,
 			G_STRUCT_OFFSET(LocationGPSDeviceClass, changed),
-			0, NULL, g_cclosure_marshal_VOID__VOID,
+			0, NULL, (GSignalCMarshaller)&g_cclosure_marshal_VOID__VOID,
 			G_TYPE_UCHAR, 0);
 
 	signals[DEVICE_CONNECTED] = g_signal_new("connected",
 			LOCATION_TYPE_GPS_DEVICE,
 			G_SIGNAL_NO_RECURSE|G_SIGNAL_RUN_FIRST,
 			G_STRUCT_OFFSET(LocationGPSDeviceClass, connected),
-			0, NULL, g_cclosure_marshal_VOID__VOID,
+			0, NULL, (GSignalCMarshaller)&g_cclosure_marshal_VOID__VOID,
 			G_TYPE_UCHAR, 0);
 
 	signals[DEVICE_DISCONNECTED] = g_signal_new("disconnected",
 			LOCATION_TYPE_GPS_DEVICE,
 			G_SIGNAL_NO_RECURSE|G_SIGNAL_RUN_FIRST,
 			G_STRUCT_OFFSET(LocationGPSDeviceClass, disconnected),
-			0, NULL, g_cclosure_marshal_VOID__VOID,
+			0, NULL, (GSignalCMarshaller)&g_cclosure_marshal_VOID__VOID,
 			G_TYPE_UCHAR, 0);
 }
 
