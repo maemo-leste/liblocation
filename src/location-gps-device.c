@@ -53,7 +53,7 @@ struct _LocationGPSDevicePrivate
 	char *foo1;
 	char *foo2;
 	char *foo3;
-	gboolean foo4;
+	gboolean sig_pending;
 };
 
 G_DEFINE_TYPE_WITH_PRIVATE(LocationGPSDevice, location_gps_device, G_TYPE_OBJECT);
@@ -136,7 +136,7 @@ static void store_lastknown_in_gconf(LocationGPSDevice *device)
 
 static int signal_changed(LocationGPSDevice *device)
 {
-	device->priv->foo4 = FALSE;
+	device->priv->sig_pending = FALSE;
 	g_signal_emit(device, signals[DEVICE_CHANGED], 0);
 	g_object_unref(device);
 	return 0;
@@ -144,10 +144,10 @@ static int signal_changed(LocationGPSDevice *device)
 
 static void add_g_timeout_interval(LocationGPSDevice *device)
 {
-	if (!device->priv->foo4) {
+	if (!device->priv->sig_pending) {
 		g_object_ref(device);
 		g_timeout_add(300, (GSourceFunc)signal_changed, device);
-		device->priv->foo4 = TRUE;
+		device->priv->sig_pending = TRUE;
 	}
 }
 
@@ -219,11 +219,11 @@ static dbus_bool_t set_accuracy(LocationGPSDevice *device, DBusMessage *msg)
 {
 	dbus_bool_t result;
 	LocationGPSDeviceFix *fix;
-	double epv, eph, epd, epc, eps, v11;
+	double epv, eph, epd, epc, eps, unused;
 	int mode;
 
 	result = dbus_message_get_args(msg, NULL, DBUS_TYPE_INT32, &mode,
-		DBUS_TYPE_DOUBLE, &v11, /* TODO: Figure out var name */
+		DBUS_TYPE_DOUBLE, &unused,
 		DBUS_TYPE_DOUBLE, &eps,
 		DBUS_TYPE_DOUBLE, &epc,
 		DBUS_TYPE_INVALID);
@@ -261,35 +261,34 @@ static dbus_bool_t set_course(LocationGPSDevice *device, DBusMessage *msg)
 	dbus_bool_t result;
 	LocationGPSDeviceFix *fix;
 	double climb, knots, track;
-	int mode, v14;
+	int mode, unused;
 	unsigned int fields;
 
 	result = dbus_message_get_args(msg, NULL, DBUS_TYPE_INT32, &mode,
-			DBUS_TYPE_INT32, &v14, /* TODO: Figure out var name */
+			DBUS_TYPE_INT32, &unused,
 			DBUS_TYPE_DOUBLE, &knots,
 			DBUS_TYPE_DOUBLE, &track,
 			DBUS_TYPE_DOUBLE, &climb,
 			DBUS_TYPE_INVALID);
 
 	if (result) {
-		/* TODO: Use enums? Simplify. */
 		fix = device->fix;
 		fields = fix->fields & 0xFFFFFFF1;
 		fix->fields = fields;
 
-		if (!((mode & 2) == 0)) {
-			fix->fields = fields | 2;
+		if (!((mode & LOCATION_GPS_DEVICE_SPEED_SET) == 0)) {
+			fix->fields = (fields|LOCATION_GPS_DEVICE_SPEED_SET);
 			fix->speed = knots * 1.852;
 		}
 
-		if (mode & 4) {
+		if (mode & LOCATION_GPS_DEVICE_TRACK_SET) {
+			fix->fields |= LOCATION_GPS_DEVICE_TRACK_SET;
 			fix->track = track;
-			fix->fields |= 4;
 		}
 
-		if (mode & 8) {
+		if (mode & LOCATION_GPS_DEVICE_CLIMB_SET) {
+			fix->fields |= LOCATION_GPS_DEVICE_CLIMB_SET;
 			fix->climb = climb;
-			fix->fields |= 8;
 		}
 
 		add_g_timeout_interval(device);
@@ -536,18 +535,17 @@ static int on_gypsy_signal(int unused, DBusMessage *msg, gpointer obj)
 						DBUS_TYPE_INVALID)) {
 				return 1;
 			}
-			/* TODO: Use enums? */
-			if (fix_fields & 1)
+			if (fix_fields & LOCATION_GPS_DEVICE_ALTITUDE_SET)
 				fix->ept = ept;
-			if (fix_fields & 2)
+			if (fix_fields & LOCATION_GPS_DEVICE_SPEED_SET)
 				fix->eph = eph;
-			if (fix_fields & 4)
+			if (fix_fields & LOCATION_GPS_DEVICE_TRACK_SET)
 				fix->epv = epv * 0.5;
-			if (fix_fields & 8)
+			if (fix_fields & LOCATION_GPS_DEVICE_CLIMB_SET)
 				fix->epd = epd * 0.01;
-			if (fix_fields & 0x10)
+			if (fix_fields & LOCATION_GPS_DEVICE_LATLONG_SET)
 				fix->eps = eps * 0.036;
-			if (fix_fields & 0x20)
+			if (fix_fields & LOCATION_GPS_DEVICE_TIME_SET)
 				fix->epc = epc * 0.01;
 		}
 
