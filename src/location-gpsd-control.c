@@ -276,7 +276,7 @@ static int get_selected_method_wrap(LocationGPSDControlPrivate *priv)
 	return get_selected_method(priv, priv->sel_method);
 }
 
-static void update_proxy_connection(int unused, int a2, GObject *object)
+static void update_proxy_connection(int unused, int response, GObject *object)
 {
 	LocationGPSDControlPrivate *priv;
 	GError *err;
@@ -284,43 +284,36 @@ static void update_proxy_connection(int unused, int a2, GObject *object)
 	priv = G_TYPE_INSTANCE_GET_PRIVATE(LOCATION_GPSD_CONTROL(object),
 			G_TYPE_OBJECT, LocationGPSDControlPrivate);
 
-	if (a2) {
-		if (priv->gypsy.server)
-			dbus_proxy_shutdown(&priv->gypsy);
-		g_signal_emit(LOCATION_GPSD_CONTROL(object),
-				signals[ERROR], 0);
-		g_signal_emit(LOCATION_GPSD_CONTROL(object),
-				signals[ERROR_VERBOSE], 0, 2);
-		g_signal_emit(LOCATION_GPSD_CONTROL(object),
-				signals[GPSD_STOPPED], 0);
-	} else {
-		err = NULL;
+	if (response) {
 		if (priv->gypsy.server) {
 			dbus_proxy_shutdown(&priv->gypsy);
-			location_gpsd_control_start_internal(
-					LOCATION_GPSD_CONTROL(object), FALSE, &err);
-			if (!err)
-				goto lab5;
-			goto lab4;
+			goto out;
 		}
+	} else {
+		err = NULL;
+		if (priv->gypsy.server)
+			dbus_proxy_shutdown(&priv->gypsy);
 
 		location_gpsd_control_start_internal(
 				LOCATION_GPSD_CONTROL(object), FALSE, &err);
+
 		if (err) {
-lab4:
 			g_log("liblocation", G_LOG_LEVEL_WARNING,
 					"Failed to update connection: %s", err->message);
 			g_error_free(err);
-			g_signal_emit(LOCATION_GPSD_CONTROL(object),
-					signals[ERROR], 0);
-			g_signal_emit(LOCATION_GPSD_CONTROL(object),
-					signals[ERROR_VERBOSE], 0, 2);
-			g_signal_emit(LOCATION_GPSD_CONTROL(object),
-					signals[GPSD_STOPPED], 0);
-			goto lab5;
+			goto out;
 		}
+		dbus_proxy_close(priv);
+		return;
 	}
-lab5:
+out:
+	g_signal_emit(LOCATION_GPSD_CONTROL(object),
+			signals[ERROR], 0);
+	g_signal_emit(LOCATION_GPSD_CONTROL(object),
+			signals[ERROR_VERBOSE], 0, 2);
+	g_signal_emit(LOCATION_GPSD_CONTROL(object),
+			signals[GPSD_STOPPED], 0);
+
 	dbus_proxy_close(priv);
 }
 
