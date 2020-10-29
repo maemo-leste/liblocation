@@ -240,30 +240,31 @@ static void register_dbus_signal_callback(LocationGPSDControl *control,
 
 static int get_selected_method(LocationGPSDControlPrivate *priv, int method)
 {
-	/* TODO: Simplify */
 	int v3, v4, v5, result;
 
 	if (method) {
 		v3 = LOCATION_METHOD_ACWP;
 		v4 = LOCATION_METHOD_GNSS;
 		v5 = LOCATION_METHOD_AGNSS;
-lab17:
 		result = 1;
-		goto lab6;
+		goto out;
 	}
 
 	result = method & LOCATION_METHOD_CWP;
+
 	if (method & LOCATION_METHOD_CWP) {
-		v5 = method & LOCATION_METHOD_AGNSS;
 		v3 = method & LOCATION_METHOD_ACWP;
 		v4 = method & LOCATION_METHOD_GNSS;
-		goto lab17;
+		v5 = method & LOCATION_METHOD_AGNSS;
+		result = 1;
+		goto out;
 	}
 
-	v5 = method & LOCATION_METHOD_AGNSS;
 	v3 = method & LOCATION_METHOD_ACWP;
 	v4 = method & LOCATION_METHOD_GNSS;
-lab6:
+	v5 = method & LOCATION_METHOD_AGNSS;
+
+out:
 	if (v3 && !priv->net_disabled)
 		result |= LOCATION_METHOD_ACWP;
 	if (v4 && !priv->gps_disabled)
