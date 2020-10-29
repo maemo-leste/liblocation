@@ -48,7 +48,7 @@ struct _LocationGPSDControlPrivate
 	gboolean gps_disabled;
 	gboolean net_disabled;
 	gboolean disclaimer_accepted;
-	gboolean p17;
+	gboolean ui_open;
 	gboolean is_running;
 	int sel_method;
 	int interval;
@@ -61,14 +61,12 @@ G_DEFINE_TYPE_WITH_PRIVATE(LocationGPSDControl, location_gpsd_control, G_TYPE_OB
 
 static void dbus_proxy_close(LocationGPSDControlPrivate *priv)
 {
-	DBusGProxy *proxy;
+	DBusGProxy *proxy = priv->location_ui_proxy;
 
-	proxy = priv->location_ui_proxy;
 	if (proxy) {
-		if (priv->p17) {
+		if (priv->ui_open) {
 			dbus_g_proxy_call(proxy, "close", NULL, G_TYPE_INVALID);
-			proxy = priv->location_ui_proxy;
-			priv->p17 = FALSE;
+			priv->ui_open = FALSE;
 		}
 		g_object_unref(proxy);
 		priv->location_ui_proxy = NULL;
@@ -233,7 +231,7 @@ static void register_dbus_signal_callback(LocationGPSDControl *control,
 				g_propagate_error(err, error_internal);
 			}
 		} else {
-			control->priv->p17 = TRUE;
+			control->priv->ui_open = TRUE;
 		}
 	}
 }
