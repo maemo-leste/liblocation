@@ -1,0 +1,496 @@
+liblocation (0.102-1) unstable; urgency=low
+
+  * Fixes: NB#153540 - Customization of A-GPS server
+  * Moved location schemas from liblocation to location-settings
+
+ -- Quanyi Sun <Quanyi.Sun@nokia.com>  Fri, 12 Feb 2010 15:40:33 +0200
+
+liblocation (0.101-1) unstable; urgency=low
+
+  * Fixes: NB#151359 - Hildon-status-menu crashes if 'Offline mode' is activated
+  * Added version information into headers
+  * Changed non default GMainContext iteration hack interval from 1/10s to 1s
+
+ -- Quanyi Sun <Quanyi.Sun@nokia.com>  Thu, 14 Jan 2010 09:06:44 +0200
+
+liblocation (0.100-1) unstable; urgency=low
+
+  * Fixes: NB#143392 - API is not rich enough
+  * Unified uncertainty units.
+
+ -- Quanyi Sun <Quanyi.Sun@nokia.com>  Thu, 22 Oct 2009 14:45:01 +0300
+
+liblocation (0.99-1) unstable; urgency=low
+
+  * Fixed crash when multiple dialogs were opened same time
+
+ -- Quanyi Sun <Quanyi.Sun@nokia.com>  Tue, 22 Sep 2009 13:38:10 +0300
+
+liblocation (0.98-1) unstable; urgency=low
+
+  * Fixes: NB#138245 - home applet tries in vain if BT is turned off after
+    pairing an external GPS
+
+ -- Quanyi Sun <Quanyi.Sun@nokia.com>  Tue, 22 Sep 2009 11:49:59 +0300
+
+liblocation (0.97-2) unstable; urgency=low
+
+  * Fixes: NB#138326 - GPS state jams when external GPS is shut down
+  * Better multiple method and offline mode handling.
+
+ -- Quanyi Sun <Quanyi.Sun@nokia.com>  Fri, 18 Sep 2009 17:06:20 +0300
+
+liblocation (0.97-1) unstable; urgency=low
+
+  * Fixes: NB#138245 - home applet tries in vain if BT is turned off after
+    pairing an external GPS
+
+ -- Quanyi Sun <Quanyi.Sun@nokia.com>  Thu, 10 Sep 2009 11:06:20 +0300
+
+liblocation (0.96-1) unstable; urgency=low
+
+  * Fixes: NB#137266 - Location home applet stops updating and even location
+    icon goes off if no BT connection.
+
+ -- Quanyi Sun <Quanyi.Sun@nokia.com>  Mon, 07 Sep 2009 15:27:46 +0300
+
+liblocation (0.95-2) unstable; urgency=low
+
+  * Fixes: NB#132062 - Location information sent redundantly in a stationary device.
+  * LocationGPSDControl not singleton anymore
+
+ -- Quanyi Sun <Quanyi.Sun@nokia.com>  Wed, 19 Aug 2009 16:57:07 +0200
+
+liblocation (0.95-1) unstable; urgency=low
+
+  * Fixes: NB#130326 - Liblocation should specify a reason on Error.
+
+ -- Quanyi Sun <Quanyi.Sun@nokia.com>  Thu, 06 Aug 2009 18:01:07 +0200
+
+liblocation (0.94-12) unstable; urgency=low
+
+  * Multiplexed all signals to get coherent fixes
+
+ -- Quanyi Sun <Quanyi.Sun@nokia.com>  Thu, 09 Jul 2009 17:44:21 +0200
+
+liblocation (0.94-11) unstable; urgency=low
+
+  * Cleanups.
+
+ -- Quanyi Sun <Quanyi.Sun@nokia.com>  Fri, 12 Jun 2009 17:04:11 +0200
+
+liblocation (0.94-10) unstable; urgency=low
+
+  * Change unit of speed to km/h
+
+ -- Quanyi Sun <Quanyi.Sun@nokia.com>  Thu, 28 Apr 2009 16:45:35 +0200
+
+liblocation (0.94-9) unstable; urgency=low
+
+  * Fixes: NB#107011 - Location related system activity while idle, sometimes busylooping
+
+ -- Quanyi Sun <Quanyi.Sun@nokia.com>  Wed, 29 Apr 2009 16:15:35 +0200
+
+liblocation (0.94-8) unstable; urgency=low
+
+  * Add another value for the interval choice command-line
+    option in test-location command-line client.
+  * Report the accuracy values from BT in centimeters.
+  * Fixed: NB#110567 - liblocation: accuracy problem.
+
+ -- Quanyi Sun <Quanyi.Sun@nokia.com>  Mon, 20 Apr 2009 13:14:46 +0200
+
+liblocation (0.94-7) unstable; urgency=low
+
+  * Change the default interval handling to the new semantics
+    implemented in the context of the NB#109493.
+
+ -- Quanyi Sun <Quanyi.Sun@nokia.com>  Tue, 07 Apr 2009 12:08:46 +0200
+
+liblocation (0.94-6) unstable; urgency=low
+
+  * Fix the D-Bus connection issue for the Device object when in
+    the default GMainContext.
+  * Change the semantics of translating the "User selected" method
+    into the lower-level method when the device is at it's default
+    Control Panel settings.
+  * Fixed: NB#105644
+
+ -- Quanyi Sun <Quanyi.Sun@nokia.com>  Mon, 23 Mar 2009 16:51:59 +0200
+
+liblocation (0.94-5) unstable; urgency=low
+
+  * Fix the problem of a private D-Bus connection being unreffed without
+    closing it.
+
+ -- Quanyi Sun <Quanyi.Sun@nokia.com>  Tue, 19 Mar 2009 11:40:14 +0200
+
+liblocation (0.94-4) unstable; urgency=low
+
+  * First part of the non-default GMainContext support.
+
+ -- Quanyi Sun <Quanyi.Sun@nokia.com>  Tue, 19 Mar 2009 10:37:14 +0200
+
+liblocation (0.94-3) unstable; urgency=low
+
+  * Handle offline mode.
+
+ -- Quanyi Sun <Quanyi.Sun@nokia.com>  Tue, 17 Mar 2009 12:35:32 +0200
+
+liblocation (0.94-2) unstable; urgency=low
+
+  * Documentation updates and cleanups.
+
+ -- Quanyi Sun <Quanyi.Sun@nokia.com>  Tue, 10 Mar 2009 17:09:42 +0200
+
+liblocation (0.94-1) unstable; urgency=low
+
+  * Build an additional liblocation0-doc package containing the
+    API documentation.
+  * Stylistic fixes to the API documentation.
+  * Small cleanups.
+
+ -- Quanyi Sun <Quanyi.Sun@nokia.com>  Thu, 05 Mar 2009 14:03:24 +0200
+
+liblocation (0.93-11) unstable; urgency=low
+
+  * Fixed a bug of network-based positioning left disabled when an
+    an application requests AGNSS, disclaimer hasn't been accepted,
+    and both GPS and Network-based positioning are disabled in the
+    Control Panel.
+
+ -- Quanyi Sun <Quanyi.Sun@nokia.com>  Thu, 12 Feb 2009 16:47:37 +0300
+
+liblocation (0.93-10) unstable; urgency=low
+
+  * Miscellaneous post-covarage-tests improvements and fixes.
+
+ -- Quanyi Sun <Quanyi.Sun@nokia.com>  Tue, 10 Feb 2009 16:40:14 +0300
+
+liblocation (0.93-9) unstable; urgency=low
+
+  * Integrate BT disconnect handling.
+
+ -- Quanyi Sun <Quanyi.Sun@nokia.com>  Fri, 23 Jan 2009 16:56:42 +0300
+
+liblocation (0.93-8) unstable; urgency=low
+
+  * Calculate uncertainties for the device.
+
+ -- Quanyi Sun <Quanyi.Sun@nokia.com>  Thu, 22 Jan 2009 15:01:12 +0300
+
+liblocation (0.93-7) unstable; urgency=low
+
+  * Removing connection to session dbus as location-ui is now in system dbus
+
+ -- Quanyi Sun <Quanyi.Sun@nokia.com>  Wed, 14 Dec 2008 13:20:00 +0300
+
+liblocation (0.93-6) unstable; urgency=low
+
+  * Initial support for external Bluetooth GPS devices.
+
+ -- Quanyi Sun <Quanyi.Sun@nokia.com>  Mon, 08 Dec 2008 14:20:00 +0300
+
+liblocation (0.93-5) unstable; urgency=low
+
+  * Wire up the AGNSS dialog.
+
+ -- Quanyi Sun <Quanyi.Sun@nokia.com>  Thu, 20 Nov 2008 18:27:00 +0300
+
+liblocation (0.93-4) unstable; urgency=low
+
+  * Wire up the "positioning" dialog.
+
+ -- Quanyi Sun <Quanyi.Sun@nokia.com>  Wed, 19 Nov 2008 16:56:00 +0300
+
+liblocation (0.93-3) unstable; urgency=low
+
+  * Wire up GPS and Networking dialogs according to the UI spec.
+
+ -- Quanyi Sun <Quanyi.Sun@nokia.com>  Thu, 13 Nov 2008 17:23:00 +0300
+
+liblocation (0.93-2) unstable; urgency=low
+
+  * Fix the disclamer dialog for the Hybrid version.
+  * Use bitwise checking of the location methods.
+
+ -- Quanyi Sun <Quanyi.Sun@nokia.com>  Wed, 12 Nov 2008 18:26:00 +0300
+
+liblocation (0.93-1) unstable; urgency=low
+
+  * The first Hybrid-enabled version.
+
+ -- Quanyi Sun <Quanyi.Sun@nokia.com>  Wed, 12 Nov 2008 13:09:00 +0300
+
+liblocation (0.92-4) unstable; urgency=low
+
+  * Fixed a changelog entry.
+
+ -- Quanyi Sun <Quanyi.Sun@nokia.com>  Mon, 20 Oct 2008 14:29:00 +0300
+
+liblocation (0.92-3) unstable; urgency=low
+
+  * Fixes: NB#88736 - liblocation-dev=0.92-1 not installable in scratchbox
+
+ -- Quanyi Sun <Quanyi.Sun@nokia.com>  Fri, 17 Oct 2008 17:00:00 +0300
+
+liblocation (0.92-2) unstable; urgency=low
+
+  * Another test application added.
+
+ -- Quanyi Sun <Quanyi.Sun@nokia.com>  Thu, 11 Sep 2008 13:26:33 +0300
+
+liblocation (0.92-1) unstable; urgency=low
+
+  * CellInfo API appended.
+  * New method types introduced and taken into use.
+
+ -- Quanyi Sun <Quanyi.Sun@nokia.com>  Mon,  1 Sep 2008 13:35:16 +0300
+
+liblocation (0.91-1) unstable; urgency=low
+
+  * Added up-to-date gconf-schemas.
+
+ -- Quanyi Sun <Quanyi.Sun@nokia.com>  Tue, 19 Aug 2008 17:11:21 +0300
+
+liblocation (0.90-1) unstable; urgency=low
+
+  * Updated the version number to differentiate the old gpsd based
+    version from the current Gypsy + DBus based one.
+  * Initial version of the network based positioning support.
+  * Integrated the new UI-dialogs.
+
+ -- Quanyi Sun <Quanyi.Sun@nokia.com>  Tue, 24 Jun 2008 13:46:17 +0300
+
+liblocation (0.30-1) unstable; urgency=low
+
+  * First version of gypsy daemon based approach.
+
+ -- Quanyi Sun <Quanyi.Sun@nokia.com>  Wed, 26 Mar 2008 14:41:21 +0000
+
+liblocation (0.28-1) unstable; urgency=low
+
+  * Fix error in header.
+
+ -- Mikko Korpelainen <mikko.korpelainen@nokia.com>  Thu, 15 Nov 2007 11:26:21 +0000
+
+liblocation (0.27-1) unstable; urgency=low
+
+  * Fix doc error
+
+ -- Mikko Korpelainen <mikko.korpelainen@nokia.com>  Fri,  2 Nov 2007 17:44:00 +0000
+
+liblocation (0.26-1) unstable; urgency=low
+
+  * Don't add an extra ref to the gPSD control.
+  * Fixed: NB#64668
+
+ -- Mikko Korpelainen <mikko.korpelainen@nokia.com>  Fri, 14 Sep 2007 11:09:36 +0100
+
+liblocation (0.25-1) unstable; urgency=low
+
+  * Make the LocationGPSDControl more stable
+
+ -- Mikko Korpelainen <mikko.korpelainen@nokia.com>  Thu, 13 Sep 2007 12:30:21 +0100
+
+liblocation (0.24-1) unstable; urgency=low
+
+  * Add a gpsd-running and gpsd-stopped signals
+  * Make LocationGPSDControl a singleton
+
+ -- Mikko Korpelainen <mikko.korpelainen@nokia.com>  Fri,  7 Sep 2007 13:38:38 +0100
+
+liblocation (0.23-5) unstable; urgency=low
+
+  * Added back the accidentally removed location/Makefile to
+    configure.ac
+
+ -- Mikko Korpelainen <mikko.korpelainen@nokia.com>  Tue, 28 Aug 2007 16:07:47 +0300
+
+liblocation (0.23-4) unstable; urgency=low
+
+  * Added po/Makefile.in to configure.ac OUTPUT files. Added empty
+    po/POTFILES.in
+
+ -- Mikko Korpelainen <mikko.korpelainen@nokia.com>  Tue, 28 Aug 2007 15:34:43 +0300
+
+liblocation (0.23-3) unstable; urgency=low
+
+  * Added build dep to glib-dev. Added glib-dev and gpsbt-dev deps to
+    -dev package.
+
+ -- Mikko Korpelainen <mikko.korpelainen@nokia.com>  Mon, 27 Aug 2007 09:32:32 +0300
+
+liblocation (0.23-2) unstable; urgency=low
+
+  * Add build deps
+
+ -- Mikko Korpelainen <mikko.korpelainen@nokia.com>  Fri, 17 Aug 2007 15:15:49 +0100
+
+liblocation (0.23-1) unstable; urgency=low
+
+  * Add the gpsd control functions :)
+
+ -- Mikko Korpelainen <mikko.korpelainen@nokia.com>  Fri, 17 Aug 2007 15:12:04 +0100
+
+liblocation (0.22-1) unstable; urgency=low
+
+  * Add gpsd control functions
+
+ -- Mikko Korpelainen <mikko.korpelainen@nokia.com>  Thu, 16 Aug 2007 16:07:10 +0100
+
+liblocation (0.21-2) unstable; urgency=low
+
+  * Add the FPU options.
+  * Fixed: NB#64110
+
+ -- Mikko Korpelainen <mikko.korpelainen@nokia.com>  Mon, 13 Aug 2007 14:37:24 +0100
+
+liblocation (0.21-1) unstable; urgency=low
+
+  * Add more docs
+  * Don't listen to the RemoteNameUpdated signals
+  * Fixed: NB#63488
+
+ -- Mikko Korpelainen <mikko.korpelainen@nokia.com>  Mon, 13 Aug 2007 14:28:58 +0100
+
+liblocation (0.20-1) unstable; urgency=low
+
+  * Listen to the RemoteAliasChanged signal as well for renaming.
+  * Fixed: NB#63488
+
+ -- Mikko Korpelainen <mikko.korpelainen@nokia.com>  Wed,  1 Aug 2007 15:55:49 +0100
+
+liblocation (0.19-1) unstable; urgency=low
+
+  * Remove debugging spew. Fixed: NB#64110
+
+ -- Mikko Korpelainen <mikko.korpelainen@nokia.com>  Wed,  1 Aug 2007 15:32:02 +0100
+
+liblocation (0.18-1) unstable; urgency=low
+
+  * Report all BT devices as GPS devices. Fixed: NB#60646
+
+ -- Mikko Korpelainen <mikko.korpelainen@nokia.com>  Tue, 31 Jul 2007 12:59:08 +0100
+
+liblocation (0.17-1) unstable; urgency=low
+
+  * REverted anti-debugging patch as the Nokia build system does not turn
+    debugging on, which makes it useless for testing.
+
+ -- Mikko Korpelainen <mikko.korpelainen@nokia.com>  Mon, 30 Jul 2007 14:59:51 +0100
+
+liblocation (0.16-1) unstable; urgency=low
+
+  * Fixed: NB#64110
+
+ -- Mikko Korpelainen <mikko.korpelainen@nokia.com>  Wed, 25 Jul 2007 12:08:55 +0100
+
+liblocation (0.15-1) unstable; urgency=low
+
+  * Ignore whether the values are set or not.
+  * Fixed: NB#59031
+
+ -- Mikko Korpelainen <mikko.korpelainen@nokia.com>  Tue, 24 Jul 2007 20:03:29 +0100
+
+liblocation (0.14-1) unstable; urgency=low
+
+  * Increase required version of gpsd
+
+ -- Mikko Korpelainen <mikko.korpelainen@nokia.com>  Tue, 10 Jul 2007 17:25:52 +0100
+
+liblocation (0.13-1) unstable; urgency=low
+
+  * Reset satellites, and reset the last known fields before setting the time
+  * Fixed: NB#61527
+
+ -- Mikko Korpelainen <mikko.korpelainen@nokia.com>  Fri,  6 Jul 2007 12:48:45 +0100
+
+liblocation (0.12-1) unstable; urgency=low
+
+  * Only emit changed signals when something changes.
+  * Include a TIME_SET field
+
+ -- Mikko Korpelainen <mikko.korpelainen@nokia.com>  Wed,  4 Jul 2007 15:01:42 +0100
+
+liblocation (0.11-1) unstable; urgency=low
+
+  * Add signals for connection and disconnections
+  * Fixed: NB#61198
+
+ -- Mikko Korpelainen <mikko.korpelainen@nokia.com>  Tue, 26 Jun 2007 16:24:53 +0100
+
+liblocation (0.10-1) unstable; urgency=low
+
+  * Fixes: NB#60366, NB#56976
+
+ -- Mikko Korpelainen <mikko.korpelainen@nokia.com>  Tue, 19 Jun 2007 18:49:00 +0000
+
+liblocation (0.9-1) unstable; urgency=low
+
+  * Fix memory leaks.
+
+ -- Mikko Korpelainen <mikko.korpelainen@nokia.com>  Tue, 12 Jun 2007 16:13:00 +0000
+
+liblocation (0.8-2) unstable; urgency=low
+
+  * Add debug package for liblocation.
+
+ -- Mikko Korpelainen <mikko.korpelainen@nokia.com>  Thu,  7 Jun 2007 11:30:11 +0100
+
+liblocation (0.8-1) unstable; urgency=low
+
+  * Use the device's alias if present
+  * Replace the hack around the control-panel unloading issue by forcing the
+    libraries to be resident in memory.
+  * Fixes: NB#57019, NB#58839, NB#58842
+
+ -- Mikko Korpelainen <mikko.korpelainen@nokia.com>  Tue,  5 Jun 2007 11:23:52 +0100
+
+liblocation (0.7-1) unstable; urgency=low
+
+  * Hack around the issues when control-panel loads and unloads the modules
+  * Fixes: NB#56516
+  * Report paired devices correctly
+
+ -- Mikko Korpelainen <mikko.korpelainen@nokia.com>  Fri, 25 May 2007 19:16:00 +0000
+
+liblocation (0.6-1) unstable; urgency=low
+
+  * Fix API to get the BT devices.
+  * Fixes: NB#56976, NB#57011, NB#57019
+
+ -- Mikko Korpelainen <mikko.korpelainen@nokia.com>  Wed, 23 May 2007 14:52:00 +0000
+
+liblocation (0.5-1) unstable; urgency=low
+
+  * Add API to get the BT devices
+
+ -- Mikko Korpelainen <mikko.korpelainen@nokia.com>  Wed, 16 May 2007 10:41:00 +0000
+
+liblocation (0.4-1) unstable; urgency=low
+
+  * Fix control issues
+  * Send the correct setup commands to gpsd
+
+ -- Mikko Korpelainen <mikko.korpelainen@nokia.com>  Wed,  9 May 2007 14:25:00 +0000
+
+liblocation (0.3-1) unstable; urgency=low
+
+  * Update for osso 1.1
+
+ -- Mikko Korpelainen <mikko.korpelainen@nokia.com>  Wed,  2 May 2007 15:21:00 +0000
+
+liblocation (0.2-1) unstable; urgency=low
+
+  * Build fixes.
+  * Handle gpsd quitting unexpectedly.
+
+ -- Mikko Korpelainen <mikko.korpelainen@nokia.com>  Thu,  26 Apr 2007 16:42:00 +0000
+
+liblocation (0.1-1) unstable; urgency=low
+
+  * Initial Release.
+
+ -- unknown <x@x.com>  Mon,  5 Mar 2007 16:03:22 +0000
+

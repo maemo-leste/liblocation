@@ -1,0 +1,2 @@
+debian/tmp/usr/lib/*/liblocation.a
+debian/tmp/usr/lib/*/liblocation.so.*

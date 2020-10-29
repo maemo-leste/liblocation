@@ -1,0 +1,23 @@
+Source: liblocation
+Priority: optional
+Maintainer: Ivan J. <parazyd@dyne.org>
+Build-Depends:
+ debhelper (>= 10),
+ libdbus-1-dev,
+ libdbus-glib-1-dev,
+ libgconf2-dev,
+ libglib2.0-dev,
+
+Package: liblocation0
+Section: libs
+Architecture: any
+Depends: ${shlibs:Depends, ${misc:Depends}
+Description: Library for controlling gpsd
+ Utility library for performing GPS related functions
+
+Package: liblocation-dev
+Section: libdevel
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, mce-dev
+Description: Development files for liblocation
+ Development files for liblocation0
