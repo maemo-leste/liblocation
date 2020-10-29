@@ -132,9 +132,13 @@ static int dbus_proxy_setup(LocationGPSDControl *control, int method,
 	type = dbus_g_object_path_get_g_type();
 	gypsy = &priv->gypsy;
 
-	if (!dbus_g_proxy_call(server_proxy, "Create", error, 0x40u, "las",
-				type, &priv->gypsy.path, G_TYPE_INVALID))
-		goto lab10;
+	if (!dbus_g_proxy_call(server_proxy, "Create", error,
+				G_TYPE_STRING, "las",
+				type, &priv->gypsy.path,
+				G_TYPE_INVALID)) {
+		dbus_proxy_shutdown(gypsy);
+		return 0;
+	}
 
 	param_proxy = dbus_g_proxy_new_for_name(priv->dbus,
 			"com.nokia.Location",
@@ -177,7 +181,6 @@ static int dbus_proxy_setup(LocationGPSDControl *control, int method,
 		if (ierr)
 			priv->field_48 = TRUE;
 	} else {
-lab10:
 		dbus_proxy_shutdown(gypsy);
 		result = 0;
 	}
