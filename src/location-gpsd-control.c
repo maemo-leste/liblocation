@@ -142,8 +142,10 @@ static int dbus_proxy_setup(LocationGPSDControl *control, int method,
 			"com.nokia.Location",
 			"/com/nokia/location",
 			"com.nokia.Location.Parameters");
-	dbus_g_proxy_call(param_proxy, "set", &ierr, 0x18u, method, 0x18,
-			interval, G_TYPE_INVALID, G_TYPE_INVALID);
+	dbus_g_proxy_call(param_proxy, "set", &ierr,
+			G_TYPE_INT, method,
+			G_TYPE_INT, interval,
+			G_TYPE_INVALID, G_TYPE_INVALID);
 	g_object_unref(param_proxy);
 
 	if (ierr) {
@@ -164,7 +166,7 @@ static int dbus_proxy_setup(LocationGPSDControl *control, int method,
 	priv->gypsy.device = device_proxy;
 
 	dbus_g_proxy_add_signal(device_proxy,
-			"ConnectionStatusChanged", 0x14u, ierr);
+			"ConnectionStatusChanged", G_TYPE_BOOLEAN, ierr);
 	dbus_g_proxy_connect_signal(
 			priv->gypsy.device,
 			"ConnectionStatusChanged",
@@ -204,7 +206,7 @@ static void register_dbus_signal_callback(LocationGPSDControl *control,
 		priv->location_ui_proxy = new_proxy;
 
 		dbus_g_proxy_add_signal(priv->location_ui_proxy,
-				"response", 0x18u, G_TYPE_INVALID);
+				"response", G_TYPE_INT, G_TYPE_INVALID);
 		dbus_g_proxy_connect_signal(control->priv->location_ui_proxy,
 				"response", handler_func, control, NULL);
 		dbus_g_proxy_call(control->priv->location_ui_proxy,
@@ -550,8 +552,9 @@ lab46:
 		mce_device_mode = NULL;
 		proxy = dbus_g_proxy_new_for_name(bus, "com.nokia.mce",
 				"/com/nokia/mce/request", "com.nokia.mce.request");
-		dbus_g_proxy_call(proxy, "get_device_mode", &ierr1,
-				G_TYPE_INVALID, 0x40, &mce_device_mode,
+		dbus_g_proxy_call(proxy, "get_device_mode",
+				&ierr1, G_TYPE_INVALID,
+				G_TYPE_STRING, &mce_device_mode,
 				G_TYPE_INVALID);
 		g_object_unref(proxy);
 		if (ierr1) {
@@ -720,7 +723,7 @@ lab31:
 	proxy = dbus_g_proxy_new_for_name(control->priv->dbus,
 			"org.bluez", mce_device_mode, "org.bluez.Adapter");
 	type = g_value_get_type();
-	hashtable_type = dbus_g_type_get_map("GHashTable", 0x40u, type);
+	hashtable_type = dbus_g_type_get_map("GHashTable", G_TYPE_STRING, type);
 	v21 = dbus_g_proxy_call(proxy, "GetProperties", &ierr1,
 			G_TYPE_INVALID, hashtable_type, &hash_table,
 			G_TYPE_INVALID);
@@ -752,8 +755,9 @@ lab75:
 			g_value_set_boolean(&value, TRUE);
 
 			v21 = dbus_g_proxy_call(proxy, "SetProperty", &ierr1,
-					0x40u, "Powered", type, &value, G_TYPE_INVALID,
-					G_TYPE_INVALID);
+					G_TYPE_STRING, "Powered",
+					type, &value,
+					G_TYPE_INVALID, G_TYPE_INVALID);
 			if (v21) {
 				v21 = TRUE;
 				goto lab76;
@@ -789,7 +793,7 @@ lab76:
 	device = control->priv->device;
 	priv->gypsy.server = server_proxy;
 
-	if (dbus_g_proxy_call(server_proxy, "Create", err, 0x40u, device,
+	if (dbus_g_proxy_call(server_proxy, "Create", err, G_TYPE_STRING, device,
 				G_TYPE_INVALID, type, &priv->gypsy.path,
 				G_TYPE_INVALID)) {
 		device_proxy = dbus_g_proxy_new_for_name(
@@ -799,7 +803,7 @@ lab76:
 				"org.freedesktop.Gypsy.Device");
 		priv->gypsy.device = device_proxy;
 		dbus_g_proxy_add_signal(device_proxy,
-				"ConnectionStatusChanged", 0x14u, NULL);
+				"ConnectionStatusChanged", G_TYPE_BOOLEAN, NULL);
 		dbus_g_proxy_connect_signal(priv->gypsy.device,
 				"ConnectionStatusChanged",
 				(GCallback)connection_changed_cb,
@@ -1271,7 +1275,8 @@ static void location_gpsd_control_init(LocationGPSDControl *control)
 
 	proxy = dbus_g_proxy_new_for_name(priv->dbus, "com.nokia.mce",
 			"/com/nokia/mce/signal", "com.nokia.mce.signal");
-	dbus_g_proxy_add_signal(proxy, "sig_device_mode_ind", 0x40u, 0);
+	dbus_g_proxy_add_signal(proxy, "sig_device_mode_ind",
+			G_TYPE_STRING, G_TYPE_INVALID);
 	dbus_g_proxy_connect_signal(proxy, "sig_device_mode_ind",
 			(GCallback)device_mode_changed_cb, control, NULL);
 	priv->cdr_method = proxy;
