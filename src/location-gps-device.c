@@ -48,11 +48,17 @@ struct _LocationGPSDevicePrivate
 	double pitch;
 	double roll;
 	double dip;
-	LocationCellInfo *cell_info;
-	char *baz;
-	char *foo1;
-	char *foo2;
-	char *foo3;
+	//LocationCellInfo *cell_info;
+	// TODO: make cellinfo_flags .. wcdma_ucid into an inline struct called
+	// cell_info
+	int cellinfo_flags;
+	guint16 gsm_mcc;
+	guint16 gsm_mnc;
+	guint16 gsm_lac;
+	guint16 gsm_cellid;
+	guint16 wcdma_mcc;
+	guint16 wcdma_mnc;
+	guint32 wcdma_ucid;
 	gboolean sig_pending;
 };
 
@@ -471,12 +477,18 @@ static void get_values_from_gypsy(LocationGPSDevice *device,
 
 static int on_gypsy_signal(int unused, DBusMessage *msg, gpointer obj)
 {
-	/* LocationGPSDevicePrivate *priv */
-	/* DBusError err */
+	LocationGPSDevice *device;
+	LocationGPSDevicePrivate *priv;
+	DBusError error;
 	gboolean online;
 	unsigned int fix_fields;
 	double ept, eph, epv, epd, eps, epc;
 	LocationGPSDeviceFix *fix;
+	int flags;
+	guint16 *gsm_cellinfo_r;
+	guint32 *wcdma_cellinfo_r;
+	guint32 gsm_fields = 0;
+	guint32 wcdma_fields = 0;
 
 	if (LOCATION_IS_GPS_DEVICE(obj)) {
 		if (dbus_message_is_signal(msg, "org.freedesktop.Gypsy.Position",
@@ -489,17 +501,19 @@ static int on_gypsy_signal(int unused, DBusMessage *msg, gpointer obj)
 				G_STRFUNC, "LOCATION_IS_GPS_DEVICE(device)");
 	}
 
-	fix = LOCATION_GPS_DEVICE(obj)->fix;
+	device = LOCATION_GPS_DEVICE(obj);
+
+	fix = device->fix;
 
 	if (dbus_message_is_signal(msg, "org.freedesktop.Gypsy.Course",
 				"CourseChanged")) {
-		set_course(LOCATION_GPS_DEVICE(obj), msg);
+		set_course(device, msg);
 		return 1;
 	}
 
 	if (dbus_message_is_signal(msg, "org.freedesktop.Gypsy.Satellite",
 				"SatellitesChanged")) {
-		set_satellites(LOCATION_GPS_DEVICE(obj), msg);
+		set_satellites(device, msg);
 		return 1;
 	}
 
@@ -507,20 +521,47 @@ static int on_gypsy_signal(int unused, DBusMessage *msg, gpointer obj)
 				"ConnectionStatusChanged")) {
 		if (dbus_message_is_signal(msg, "org.freedesktop.Gypsy.Device",
 					"FixStatusChanged")) {
-			set_fix_status(LOCATION_GPS_DEVICE(obj), msg);
+			set_fix_status(device, msg);
 			return 1;
 		}
 
 		if (dbus_message_is_signal(msg, "org.freedesktop.Gypsy.Device",
 					"AccuracyChanged")) {
-			set_accuracy(LOCATION_GPS_DEVICE(obj), msg);
+			set_accuracy(device, msg);
 			return 1;
 		}
 
 		if (dbus_message_is_signal(msg, "com.nokia.Location.Cell",
 					"CellInfoChanged")) {
-			/* TODO: Finish the cell/supl side */
-			return 1;
+			dbus_error_init(&error);
+			if (!dbus_message_get_args(msg, &error, DBUS_TYPE_INT32, &flags,
+						DBUS_TYPE_ARRAY, DBUS_TYPE_UINT16, &gsm_cellinfo_r, &gsm_fields,
+						DBUS_TYPE_ARRAY, DBUS_TYPE_UINT32, &wcdma_cellinfo_r, wcdma_fields,
+						NULL)) {
+				g_log("liblocation", G_LOG_LEVEL_WARNING,
+						"Failed to parse CellInfo from DBus message: %s",
+						error.message);
+				dbus_error_free(&error);
+				return 1;
+			}
+
+			priv = device->priv;
+			device->cell_info = priv->cell_info; // XXX: when we change _LocationGPSDevicePrivate, change this to assign to the address of priv->cell_info instead
+
+			priv->cell_info->flags = flags;
+			if ((flags & LOCATION_CELL_INFO_GSM_CELL_INFO_SET) && (gsm_fields > 3)) {
+				priv->gsm_mcc = gsm_cellinfo_r[0];
+				priv->gsm_mnc = gsm_cellinfo_r[1];
+				priv->gsm_lac = gsm_cellinfo_r[2];
+				priv->gsm_cellid = gsm_cellinfo_r[3];
+			}
+			if ((flags & LOCATION_CELL_INFO_WCDMA_CELL_INFO_SET) && (wcdma_fields > 2)) {
+				priv->wcdma_mcc = (guint16)wcdma_cellinfo_r[0];
+				priv->wcdma_mnc = (guint16)wcdma_cellinfo_r[1];
+				priv->wcdma_ucid = wcdma_cellinfo_r[2];
+			}
+
+
 		} else {
 			if (!dbus_message_is_signal(msg, "com.nokia.Location.Uncertainty",
 						"UncertaintyChanged")
