@@ -14,7 +14,7 @@ liblocation_la_SOURCES = \
 liblocation_la_CFLAGS = $(LIBLOCATION_CFLAGS) -Wall
 liblocation_la_LDFLAGS = -lm -Wl,--as-needed
 
-liblocationincludedir=$(includedir)
+liblocationincludedir=$(includedir)/location
 liblocationinclude_HEADERS = \
 	location-distance-utils.h \
 	location-gpsd-control.h \
