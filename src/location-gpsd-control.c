@@ -94,7 +94,7 @@ static void dbus_proxy_shutdown(gypsy_dbus_proxy *gdp)
 			dbus_g_proxy_call(server, "Shutdown", &error, path_type,
 					path, G_TYPE_INVALID, G_TYPE_INVALID);
 			if (error) {
-				g_log("liblocation", G_LOG_LEVEL_WARNING,
+				g_log("liblocation", G_LOG_LEVEL_WARNING, "%s",
 						error->message);
 				g_error_free(error);
 			}
