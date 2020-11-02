@@ -1282,3 +1282,8 @@ static void location_gpsd_control_init(LocationGPSDControl *control)
 			(GCallback)device_mode_changed_cb, control, NULL);
 	priv->cdr_method = proxy;
 }
+
+LocationGPSDControl *location_gpsd_control_get_default()
+{
+	return g_object_new(LOCATION_TYPE_GPSD_CONTROL, NULL);
+}
