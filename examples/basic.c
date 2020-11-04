@@ -4,11 +4,30 @@
 static void on_error(LocationGPSDControl *control, LocationGPSDControlError error, gpointer data)
 {
 	g_debug("location error: %d... quitting", error);
+	switch (error) {
+	case LOCATION_ERROR_USER_REJECTED_DIALOG:
+		g_debug("User didn't enable requested methods");
+		break;
+	case LOCATION_ERROR_USER_REJECTED_SETTINGS:
+		g_debug("User changed settings, which disabled location");
+		break;
+	case LOCATION_ERROR_BT_GPS_NOT_AVAILABLE:
+		g_debug("Problems with BT GPS");
+		break;
+	case LOCATION_ERROR_METHOD_NOT_ALLOWED_IN_OFFLINE_MODE:
+		g_debug("Requested method is not allowed in offline mode");
+		break;
+	case LOCATION_ERROR_SYSTEM:
+		g_debug("System error");
+		break;
+	}
+
 	g_main_loop_quit((GMainLoop *) data);
 }
 
 static void on_changed(LocationGPSDevice *device, gpointer data)
 {
+	g_message("Got \"changed\" signal");
 	if (!device)
 		return;
 
@@ -47,6 +66,7 @@ int main(int argc, char *argv[])
 		"preferred-method", LOCATION_METHOD_USER_SELECTED,
 		"preferred-interval", LOCATION_INTERVAL_DEFAULT,
 		NULL);
+
 
 	g_signal_connect(control, "error-verbose", G_CALLBACK(on_error), loop);
 	g_signal_connect(device, "changed", G_CALLBACK(on_changed), control);
