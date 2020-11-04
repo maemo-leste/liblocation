@@ -48,36 +48,6 @@ static guint signals[LAST_SIGNAL] = {};
 struct _LocationGPSDevicePrivate
 {
 	DBusConnection *bus;
-	char *foo;
-	LocationGPSDeviceFix *fix;
-	guint32 fields;
-	double time;
-	double ept;
-	double latitude;
-	double longitude;
-	double eph;
-	double altitude;
-	double epv;
-	double track;
-	double epd;
-	double speed;
-	double eps;
-	double climb;
-	double epc;
-	double pitch;
-	double roll;
-	double dip;
-	//LocationCellInfo *cell_info;
-	// TODO: make cellinfo_flags .. wcdma_ucid into an inline struct called
-	// cell_info
-	int cellinfo_flags;
-	guint16 gsm_mcc;
-	guint16 gsm_mnc;
-	guint16 gsm_lac;
-	guint16 gsm_cellid;
-	guint16 wcdma_mcc;
-	guint16 wcdma_mnc;
-	guint32 wcdma_ucid;
 	gboolean sig_pending;
 };
 
@@ -161,7 +131,10 @@ static void store_lastknown_in_gconf(LocationGPSDevice *device)
 
 static int signal_changed(LocationGPSDevice *device)
 {
-	device->priv->sig_pending = FALSE;
+	LocationGPSDevicePrivate *priv;
+	priv = location_gps_device_get_instance_private(device);
+
+	priv->sig_pending = FALSE;
 	g_signal_emit(device, signals[DEVICE_CHANGED], 0);
 	g_object_unref(device);
 	return 0;
@@ -169,10 +142,13 @@ static int signal_changed(LocationGPSDevice *device)
 
 static void add_g_timeout_interval(LocationGPSDevice *device)
 {
-	if (!device->priv->sig_pending) {
+	LocationGPSDevicePrivate *priv;
+	priv = location_gps_device_get_instance_private(device);
+
+	if (!priv->sig_pending) {
 		g_object_ref(device);
 		g_timeout_add(300, (GSourceFunc)signal_changed, device);
-		device->priv->sig_pending = TRUE;
+		priv->sig_pending = TRUE;
 	}
 }
 
@@ -324,8 +300,7 @@ static dbus_bool_t set_course(LocationGPSDevice *device, DBusMessage *msg)
 
 static int iterate_dbus_struct_by_type(DBusMessageIter *iter, int type, ...)
 {
-	/* TODO: Review if this function is actually correct.
-	 * It does not represent exactly what was found */
+	/* TODO: Review if this function is actually correct. It does not represent exactly what was found */
 	void **value = NULL;
 	va_list va, va_args;
 
@@ -404,6 +379,8 @@ static dbus_bool_t set_satellites(LocationGPSDevice *device, DBusMessage *msg)
 static void get_values_from_gypsy(LocationGPSDevice *device,
 		const gchar *bus_name, gchar *type)
 {
+	g_debug("Entered %s (noop)", G_STRFUNC);
+	return;
 	LocationGPSDevicePrivate *priv;
 	DBusMessage *cmd, *msg;
 	gchar *str;
@@ -411,7 +388,7 @@ static void get_values_from_gypsy(LocationGPSDevice *device,
 	g_log("liblocation", G_LOG_LEVEL_DEBUG,
 			"Loading initial values from %s::%s", bus_name, type);
 
-	priv = device->priv;
+	priv = location_gps_device_get_instance_private(device);
 
 	cmd = dbus_message_new_method_call(bus_name, "/org/freedesktop/Gypsy",
 			"org.freedesktop.Gypsy.Server", "Create");
@@ -494,35 +471,177 @@ static void get_values_from_gypsy(LocationGPSDevice *device,
 	}
 }
 
+static dbus_bool_t set_from_gpsd(LocationGPSDevice *device, DBusMessage *msg)
+{
+	dbus_bool_t result;
+	LocationGPSDeviceFix *fix = device->fix;
+	DBusError error;
+
+	/* see gpsd(8), and gpsd/gpsd/dbusexport.c for dbus interface */
+	double time;
+	int    mode;
+	double ept;
+	double latitude;
+	double longitude;
+	double eph;
+	double altitude;
+	double epv;
+	double track;
+	double epd;
+	double speed;
+	double eps;
+	double climb;
+	double epc;
+	const char *gpsd_devname;
+
+	dbus_error_init(&error);
+
+	result = dbus_message_get_args(msg, &error,
+			DBUS_TYPE_DOUBLE, &time,
+			DBUS_TYPE_INT32,  &mode,
+			DBUS_TYPE_DOUBLE, &ept,
+			DBUS_TYPE_DOUBLE, &latitude,
+			DBUS_TYPE_DOUBLE, &longitude,
+			DBUS_TYPE_DOUBLE, &eph,
+			DBUS_TYPE_DOUBLE, &altitude,
+			DBUS_TYPE_DOUBLE, &epv,
+			DBUS_TYPE_DOUBLE, &track,
+			DBUS_TYPE_DOUBLE, &epd,
+			DBUS_TYPE_DOUBLE, &speed,
+			DBUS_TYPE_DOUBLE, &eps,
+			DBUS_TYPE_DOUBLE, &climb,
+			DBUS_TYPE_DOUBLE, &epc,
+			DBUS_TYPE_STRING, &gpsd_devname);
+
+	if (dbus_error_is_set(&error)) {
+		g_critical("%s: dbus error: %s", G_STRFUNC, error.message);
+		dbus_error_free(&error);
+	}
+
+	if (!result) {
+		g_debug("no result");
+		return result;
+	}
+
+	g_debug("time: %f", time);
+	g_debug("mode: %d", mode);
+	g_debug("ept: %f", ept);
+	g_debug("lat: %f", latitude);
+	g_debug("lon: %f", longitude);
+	g_debug("eph: %f", eph);
+	g_debug("alt: %f", altitude);
+	g_debug("epv: %f", epv);
+	g_debug("track: %f", track);
+	g_debug("epd: %f", epd);
+	g_debug("speed: %f", speed);
+	g_debug("eps: %f", eps);
+	g_debug("climb: %f", climb);
+	g_debug("epc: %f", epc);
+	g_debug("devname: %s", gpsd_devname);
+
+	/* set_position */
+	if (mode & LOCATION_GPS_DEVICE_MODE_2D) {
+		fix->latitude = latitude;
+		fix->longitude = longitude;
+		fix->fields |= LOCATION_GPS_DEVICE_LATLONG_SET;
+		device->status = LOCATION_GPS_DEVICE_STATUS_FIX;
+	} else {
+		fix->fields &= LOCATION_GPS_DEVICE_LATLONG_SET;
+		device->status = LOCATION_GPS_DEVICE_STATUS_NO_FIX;
+	}
+
+	if (mode & LOCATION_GPS_DEVICE_MODE_3D) {
+		fix->altitude = altitude;
+		fix->fields |= LOCATION_GPS_DEVICE_ALTITUDE_SET;
+		device->status = LOCATION_GPS_DEVICE_STATUS_FIX;
+	} else {
+		fix->fields &= LOCATION_GPS_DEVICE_ALTITUDE_SET;
+	}
+
+	if (time != 0.0) {
+		fix->time = time;
+		fix->fields |= LOCATION_GPS_DEVICE_TIME_SET;
+	} else {
+		fix->fields &= LOCATION_GPS_DEVICE_TIME_SET;
+	}
+	/* set_position */
+
+	/* set_accuracy */
+	if (mode & 2) {
+		fix->eps = eps;
+		fix->eph = eph;
+		fix->epd = epd;
+	}
+
+	if (mode & 4) {
+		fix->epc = epc;
+		fix->epv = epv;
+	}
+
+	fix->ept = 0.0;
+	/* set_accuracy */
+
+	/* set_course */
+	if (speed) {
+		fix->speed = speed * 1.852; /* TODO : Check if they're knots */
+		fix->fields |= LOCATION_GPS_DEVICE_SPEED_SET;
+	} else {
+		fix->fields &= LOCATION_GPS_DEVICE_SPEED_SET;
+	}
+
+	if (track) {
+		fix->track = track;
+		fix->fields |= LOCATION_GPS_DEVICE_TRACK_SET;
+	} else {
+		fix->fields &= LOCATION_GPS_DEVICE_TRACK_SET;
+	}
+
+	if (climb) {
+		fix->climb = climb;
+		fix->fields |= LOCATION_GPS_DEVICE_CLIMB_SET;
+	} else {
+		fix->fields &= LOCATION_GPS_DEVICE_CLIMB_SET;
+	}
+	/* set_course */
+
+	add_g_timeout_interval(device);
+	return result;
+}
+
 static int on_gypsy_signal(int unused, DBusMessage *msg, gpointer obj)
 {
 	LocationGPSDevice *device;
-	LocationGPSDevicePrivate *priv;
+	/* LocationGPSDevicePrivate *priv; */
 	DBusError error;
 	gboolean online;
+	/*
 	unsigned int fix_fields;
 	double ept, eph, epv, epd, eps, epc;
 	LocationGPSDeviceFix *fix;
+	*/
 	int flags;
 	guint16 *gsm_cellinfo_r;
 	guint32 *wcdma_cellinfo_r;
 	guint32 gsm_fields = 0;
 	guint32 wcdma_fields = 0;
 
-	if (LOCATION_IS_GPS_DEVICE(obj)) {
-		if (dbus_message_is_signal(msg, "org.freedesktop.Gypsy.Position",
-					"PositionChanged")) {
-			set_position(LOCATION_GPS_DEVICE(obj), msg);
-			return 1;
-		}
-	} else {
-		g_assertion_message_expr("liblocation", __FILE__, __LINE__,
-				G_STRFUNC, "LOCATION_IS_GPS_DEVICE(device)");
-	}
+	if (!LOCATION_IS_GPS_DEVICE(obj))
+		g_assert("LOCATION_IS_GPS_DEVICE(obj)");
 
 	device = LOCATION_GPS_DEVICE(obj);
 
-	fix = device->fix;
+	if (dbus_message_is_signal(msg, "org.gpsd", "fix")) {
+		set_from_gpsd(device, msg);
+		return 1;
+	}
+
+	g_debug("Didn't match gpsd, name is '%s'", dbus_message_get_member(msg));
+
+	if (dbus_message_is_signal(msg, "org.freedesktop.Gypsy.Position",
+				"PositionChanged")) {
+		set_position(device, msg);
+		return 1;
+	}
 
 	if (dbus_message_is_signal(msg, "org.freedesktop.Gypsy.Course",
 				"CourseChanged")) {
@@ -564,7 +683,8 @@ static int on_gypsy_signal(int unused, DBusMessage *msg, gpointer obj)
 				return 1;
 			}
 
-			priv = device->priv;
+			/*
+			priv = location_gps_device_get_instance_private(LOCATION_GPS_DEVICE(obj));
 			device->cell_info = priv->cell_info; // XXX: when we change _LocationGPSDevicePrivate, change this to assign to the address of priv->cell_info instead
 
 			priv->cell_info->flags = flags;
@@ -607,6 +727,7 @@ static int on_gypsy_signal(int unused, DBusMessage *msg, gpointer obj)
 				fix->eps = eps * 0.036;
 			if (fix_fields & LOCATION_GPS_DEVICE_TIME_SET)
 				fix->epc = epc * 0.01;
+				*/
 		}
 
 		add_g_timeout_interval(LOCATION_GPS_DEVICE(obj));
@@ -633,17 +754,12 @@ static int on_gypsy_signal(int unused, DBusMessage *msg, gpointer obj)
 
 void location_gps_device_reset_last_known(LocationGPSDevice *device)
 {
-	LocationGPSDeviceFix *fix;
+	LocationGPSDeviceFix *fix = device->fix;
 	GConfClient *client;
 
-	if (!LOCATION_IS_GPS_DEVICE(device)) {
-		g_log("liblocation", G_LOG_LEVEL_CRITICAL,
-				"%s: assertion '%s' failed", G_STRFUNC,
-				"LOCATION_IS_GPS_DEVICE(device)");
-		return;
-	}
+	if (!LOCATION_IS_GPS_DEVICE(device))
+		g_assert("LOCATION_IS_GPS_DEVICE(device)");
 
-	fix = device->fix;
 	client = gconf_client_get_default();
 
 	device->status = LOCATION_GPS_DEVICE_STATUS_NO_FIX;
@@ -675,15 +791,13 @@ void location_gps_device_reset_last_known(LocationGPSDevice *device)
 
 void location_gps_device_start(LocationGPSDevice *device)
 {
-	g_log("liblocation", G_LOG_LEVEL_WARNING,
-			"You don't need to call %s, it does nothing anymore!",
+	g_warning("You don't need to call %s, it does nothing anymore!",
 			G_STRFUNC);
 }
 
 void location_gps_device_stop(LocationGPSDevice *device)
 {
-	g_log("liblocation", G_LOG_LEVEL_WARNING,
-			"You don't need to call %s, it does nothing anymore!",
+	g_warning("You don't need to call %s, it does nothing anymore!",
 			G_STRFUNC);
 }
 
@@ -696,11 +810,12 @@ static void location_gps_device_finalize(GObject *object)
 static void location_gps_device_dispose(GObject *object)
 {
 	LocationGPSDevicePrivate *priv;
-
-	priv = G_TYPE_INSTANCE_GET_PRIVATE(LOCATION_GPS_DEVICE(object),
-			G_TYPE_OBJECT, LocationGPSDevicePrivate);
+	priv = location_gps_device_get_instance_private(LOCATION_GPS_DEVICE(object));
 
 	if (priv->bus) {
+		dbus_bus_remove_match(priv->bus,
+				"type='signal',interface='org.gpsd'",
+				NULL);
 		dbus_bus_remove_match(priv->bus,
 				"type='signal',interface='org.freedesktop.Gypsy.Device'",
 				NULL);
@@ -733,44 +848,48 @@ static void location_gps_device_dispose(GObject *object)
 
 static void location_gps_device_class_init(LocationGPSDeviceClass *klass)
 {
-	klass->parent_class.finalize = (void (*)(GObject *))location_gps_device_finalize;
-	klass->parent_class.dispose = (void (*)(GObject *))location_gps_device_dispose;
+	GObjectClass *object_class = G_OBJECT_CLASS(klass);
+
+	object_class->finalize = location_gps_device_finalize;
+	object_class->dispose = location_gps_device_dispose;
 
 	signals[DEVICE_CHANGED] = g_signal_new("changed",
-			LOCATION_TYPE_GPS_DEVICE,
+			G_TYPE_FROM_CLASS(klass),
 			G_SIGNAL_NO_RECURSE|G_SIGNAL_RUN_FIRST,
 			G_STRUCT_OFFSET(LocationGPSDeviceClass, changed),
-			0, NULL, (GSignalCMarshaller)&g_cclosure_marshal_VOID__VOID,
-			G_TYPE_UCHAR, 0);
+			0, NULL, g_cclosure_marshal_VOID__VOID,
+			G_TYPE_NONE, 0);
 
 	signals[DEVICE_CONNECTED] = g_signal_new("connected",
-			LOCATION_TYPE_GPS_DEVICE,
+			G_TYPE_FROM_CLASS(klass),
 			G_SIGNAL_NO_RECURSE|G_SIGNAL_RUN_FIRST,
 			G_STRUCT_OFFSET(LocationGPSDeviceClass, connected),
-			0, NULL, (GSignalCMarshaller)&g_cclosure_marshal_VOID__VOID,
-			G_TYPE_UCHAR, 0);
+			0, NULL, g_cclosure_marshal_VOID__VOID,
+			G_TYPE_NONE, 0);
 
 	signals[DEVICE_DISCONNECTED] = g_signal_new("disconnected",
-			LOCATION_TYPE_GPS_DEVICE,
+			G_TYPE_FROM_CLASS(klass),
 			G_SIGNAL_NO_RECURSE|G_SIGNAL_RUN_FIRST,
 			G_STRUCT_OFFSET(LocationGPSDeviceClass, disconnected),
-			0, NULL, (GSignalCMarshaller)&g_cclosure_marshal_VOID__VOID,
-			G_TYPE_UCHAR, 0);
+			0, NULL, g_cclosure_marshal_VOID__VOID,
+			G_TYPE_NONE, 0);
 }
 
 static void location_gps_device_init(LocationGPSDevice *device)
 {
 	LocationGPSDevicePrivate *priv;
+	LocationGPSDeviceFix *fix;
 	GConfClient *client;
 
-	priv = G_TYPE_INSTANCE_GET_PRIVATE(device, G_TYPE_OBJECT,
-			LocationGPSDevicePrivate);
+	priv = location_gps_device_get_instance_private(device);
 
-	device->priv = priv;
 	priv->bus = dbus_bus_get_private(DBUS_BUS_SYSTEM, NULL);
 	dbus_connection_setup_with_g_main(priv->bus, NULL);
 
 	if (priv->bus) {
+		dbus_bus_add_match(priv->bus,
+				"type='signal',interface='org.gpsd'",
+				NULL);
 		dbus_bus_add_match(priv->bus,
 				"type='signal',interface='org.freedesktop.Gypsy.Device'",
 				NULL);
@@ -799,56 +918,62 @@ static void location_gps_device_init(LocationGPSDevice *device)
 	}
 
 	device->online = FALSE;
-	device->fix = priv->fix;
-	priv->fields = LOCATION_GPS_DEVICE_NONE_SET;\
-	priv->fix = LOCATION_GPS_DEVICE_STATUS_NO_FIX;
-	priv->ept = LOCATION_GPS_DEVICE_NAN;
-	priv->eph = LOCATION_GPS_DEVICE_NAN;
-	priv->epv = LOCATION_GPS_DEVICE_NAN;
-	priv->epd = LOCATION_GPS_DEVICE_NAN;
-	priv->eps = LOCATION_GPS_DEVICE_NAN;
-	priv->epc = LOCATION_GPS_DEVICE_NAN;
-	priv->pitch = LOCATION_GPS_DEVICE_NAN;
-	priv->roll = LOCATION_GPS_DEVICE_NAN;
-	priv->dip = LOCATION_GPS_DEVICE_NAN;
+	device->status = LOCATION_GPS_DEVICE_STATUS_NO_FIX;
+	device->fix = g_try_new0(LocationGPSDeviceFix, 1);
+	fix = device->fix;
+
+	fix->mode = LOCATION_GPS_DEVICE_MODE_NOT_SEEN;
+	fix->fields = LOCATION_GPS_DEVICE_NONE_SET;
+	fix->ept = LOCATION_GPS_DEVICE_NAN;
+	fix->eph = LOCATION_GPS_DEVICE_NAN;
+	fix->epv = LOCATION_GPS_DEVICE_NAN;
+	fix->epd = LOCATION_GPS_DEVICE_NAN;
+	fix->eps = LOCATION_GPS_DEVICE_NAN;
+	fix->epc = LOCATION_GPS_DEVICE_NAN;
+	fix->pitch = LOCATION_GPS_DEVICE_NAN;
+	fix->roll = LOCATION_GPS_DEVICE_NAN;
+	fix->dip = LOCATION_GPS_DEVICE_NAN;
 
 	client = gconf_client_get_default();
 
-	if (gconf_get_float(client, &priv->time, GCONF_LK_TIME))
-		priv->fields |= LOCATION_GPS_DEVICE_TIME_SET;
+	if (gconf_get_float(client, &fix->time, GCONF_LK_TIME))
+		fix->fields |= LOCATION_GPS_DEVICE_TIME_SET;
 	else
-		priv->time = LOCATION_GPS_DEVICE_NAN;
+		fix->time = LOCATION_GPS_DEVICE_NAN;
 
-	if (gconf_get_float(client, &priv->latitude, GCONF_LK_LAT)
-			&& gconf_get_float(client, &priv->longitude, GCONF_LK_LON)) {
-		priv->fields |= LOCATION_GPS_DEVICE_LATLONG_SET;
+	if (gconf_get_float(client, &fix->latitude, GCONF_LK_LAT)
+			&& gconf_get_float(client, &fix->longitude, GCONF_LK_LON)) {
+		fix->fields |= LOCATION_GPS_DEVICE_LATLONG_SET;
 	} else {
-		priv->latitude = LOCATION_GPS_DEVICE_NAN;
-		priv->longitude = LOCATION_GPS_DEVICE_NAN;
+		fix->latitude = LOCATION_GPS_DEVICE_NAN;
+		fix->longitude = LOCATION_GPS_DEVICE_NAN;
 	}
 
-	if (gconf_get_float(client, &priv->altitude, GCONF_LK_ALT))
-		priv->fields |= LOCATION_GPS_DEVICE_ALTITUDE_SET;
+	if (gconf_get_float(client, &fix->altitude, GCONF_LK_ALT))
+		fix->fields |= LOCATION_GPS_DEVICE_ALTITUDE_SET;
 	else
-		priv->altitude = LOCATION_GPS_DEVICE_NAN;
+		fix->altitude = LOCATION_GPS_DEVICE_NAN;
 
-	if (gconf_get_float(client, &priv->track, GCONF_LK_TRK))
-		priv->fields |= LOCATION_GPS_DEVICE_TRACK_SET;
+	if (gconf_get_float(client, &fix->track, GCONF_LK_TRK))
+		fix->fields |= LOCATION_GPS_DEVICE_TRACK_SET;
 	else
-		priv->track = LOCATION_GPS_DEVICE_NAN;
+		fix->track = LOCATION_GPS_DEVICE_NAN;
 
-	if (gconf_get_float(client, &priv->speed, GCONF_LK_SPD))
-		priv->fields |= LOCATION_GPS_DEVICE_SPEED_SET;
+	if (gconf_get_float(client, &fix->speed, GCONF_LK_SPD))
+		fix->fields |= LOCATION_GPS_DEVICE_SPEED_SET;
 	else
-		priv->speed = LOCATION_GPS_DEVICE_NAN;
+		fix->speed = LOCATION_GPS_DEVICE_NAN;
 
-	if (gconf_get_float(client, &priv->climb, GCONF_LK_CLB))
-		priv->fields |= LOCATION_GPS_DEVICE_CLIMB_SET;
+	if (gconf_get_float(client, &fix->climb, GCONF_LK_CLB))
+		fix->fields |= LOCATION_GPS_DEVICE_CLIMB_SET;
 	else
-		priv->climb = LOCATION_GPS_DEVICE_NAN;
+		fix->climb = LOCATION_GPS_DEVICE_NAN;
 
 	g_object_unref(client);
 
+	get_values_from_gypsy(device, "com.nokia.Location", "las");
+
+	/*
 	if (dbus_bus_name_has_owner(priv->bus, "com.nokia.Location", NULL)) {
 		get_values_from_gypsy(device, "com.nokia.Location", "las");
 	} else {
@@ -870,4 +995,5 @@ static void location_gps_device_init(LocationGPSDevice *device)
 		g_free(car_retloc);
 		g_free(cdr_retloc);
 	}
+	*/
 }
