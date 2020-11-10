@@ -31,19 +31,6 @@
 #define GCONF_NET_DISABLED         GCONF_LOC"/network-disabled"
 #define GCONF_DISCLAIMER_ACCEPTED  GCONF_LOC"/disclaimer-accepted"
 
-enum {
-	ERROR,
-	ERROR_VERBOSE,
-	GPSD_RUNNING,
-	GPSD_STOPPED,
-	LAST_SIGNAL
-};
-
-static guint signals[LAST_SIGNAL] = {};
-
-static void location_gpsd_control_start_internal(LocationGPSDControl *, int, GError **);
-static void location_gpsd_control_prestart_internal(LocationGPSDControl *, int);
-
 typedef enum {
 	METHOD = 1,
 	INTERVAL,
@@ -51,7 +38,13 @@ typedef enum {
 	LAST_PROP
 } ControlClassProperty;
 
-static GParamSpec *obj_properties[LAST_PROP] = {};
+enum {
+	ERROR,
+	ERROR_VERBOSE,
+	GPSD_RUNNING,
+	GPSD_STOPPED,
+	LAST_SIGNAL
+};
 
 typedef struct _gypsy_dbus_proxy
 {
@@ -84,9 +77,35 @@ struct _LocationGPSDControlPrivate
 	gboolean gpsd_running;
 };
 
+static guint signals[LAST_SIGNAL] = {};
+static GParamSpec *obj_properties[LAST_PROP] = {};
+
 G_DEFINE_TYPE_WITH_PRIVATE(LocationGPSDControl, location_gpsd_control, G_TYPE_OBJECT);
 
-static void ui_proxy_close(LocationGPSDControlPrivate *priv)
+/* function declarations */
+static gboolean gconf_get_bool(gboolean *, const GConfValue *);
+static int get_selected_method(LocationGPSDControlPrivate *, int);
+static int get_selected_method_wrap(LocationGPSDControlPrivate *);
+static int main_loop(void);
+static void device_mode_changed_cb(int, gchar *, GObject *);
+static void enable_gps_and_disclaimer(int, int, GObject *);
+static void enable_gps_and_supl(int, int, GObject *);
+static void get_location_method(LocationGPSDControl *, const GConfValue *);
+static void location_gpsd_control_class_dispose(GObject *);
+static void location_gpsd_control_class_get_property(GObject *, guint, GValue *, GParamSpec *);
+static void location_gpsd_control_class_set_property(GObject *, guint, const GValue *, GParamSpec *);
+static void location_gpsd_control_class_init(LocationGPSDControlClass *);
+static void location_gpsd_control_init(LocationGPSDControl *);
+static void location_gpsd_control_prestart_internal(LocationGPSDControl *, int);
+static void location_gpsd_control_start_internal(LocationGPSDControl *, int, GError **);
+static void on_gconf_changed(GConfClient *, guint, GConfEntry *, GObject *);
+static void on_positioning_activate_response(int, int, GObject *);
+static void register_dbus_signal_callback(LocationGPSDControl *, const char *, void (*)(void), GError **);
+static void toggle_gps(int, int, GObject *);
+static void toggle_network(int, int, GObject *);
+static void ui_proxy_close(LocationGPSDControlPrivate *);
+
+void ui_proxy_close(LocationGPSDControlPrivate *priv)
 {
 	if (priv->location_ui_proxy) {
 		if (priv->ui_open) {
@@ -99,7 +118,7 @@ static void ui_proxy_close(LocationGPSDControlPrivate *priv)
 	}
 }
 
-static int get_selected_method(LocationGPSDControlPrivate *priv, int method)
+int get_selected_method(LocationGPSDControlPrivate *priv, int method)
 {
 	int v3, v4, v5, result;
 
@@ -136,12 +155,12 @@ out:
 	return result;
 }
 
-static int get_selected_method_wrap(LocationGPSDControlPrivate *priv)
+int get_selected_method_wrap(LocationGPSDControlPrivate *priv)
 {
 	return get_selected_method(priv, priv->sel_method);
 }
 
-static void on_positioning_activate_response(int unused, int a2, GObject *object)
+void on_positioning_activate_response(int unused, int a2, GObject *object)
 {
 	LocationGPSDControlPrivate *priv;
 
@@ -179,7 +198,7 @@ lab3:
 	ui_proxy_close(priv);
 }
 
-static void register_dbus_signal_callback(LocationGPSDControl *control,
+void register_dbus_signal_callback(LocationGPSDControl *control,
 		const char *path, void (*handler_func)(void), GError **error)
 {
 	LocationGPSDControlPrivate *priv;
@@ -229,7 +248,7 @@ static void register_dbus_signal_callback(LocationGPSDControl *control,
 	}
 }
 
-static void enable_gps_and_disclaimer(int unused, int a2, GObject *object)
+void enable_gps_and_disclaimer(int unused, int a2, GObject *object)
 {
 	LocationGPSDControlPrivate *priv;
 
@@ -272,7 +291,7 @@ out:
 	ui_proxy_close(priv);
 }
 
-static void enable_gps_and_supl(int unused, int a2, GObject *object)
+void enable_gps_and_supl(int unused, int a2, GObject *object)
 {
 	LocationGPSDControlPrivate *priv;
 
@@ -302,7 +321,7 @@ static void enable_gps_and_supl(int unused, int a2, GObject *object)
 	ui_proxy_close(priv);
 }
 
-static void toggle_network(int unused, int state, GObject *object)
+void toggle_network(int unused, int state, GObject *object)
 {
 	LocationGPSDControlPrivate *priv;
 
@@ -329,7 +348,7 @@ static void toggle_network(int unused, int state, GObject *object)
 	ui_proxy_close(priv);
 }
 
-static void toggle_gps(int unused, int state, GObject *object)
+void toggle_gps(int unused, int state, GObject *object)
 {
 	LocationGPSDControlPrivate *priv;
 
@@ -356,7 +375,7 @@ static void toggle_gps(int unused, int state, GObject *object)
 	ui_proxy_close(priv);
 }
 
-static void location_gpsd_control_start_internal(
+void location_gpsd_control_start_internal(
 		LocationGPSDControl *control, int unsure_ui_related, GError **error)
 {
 	LocationGPSDControlPrivate *priv;
@@ -652,7 +671,7 @@ lab48:
 	return;
 }
 
-static void location_gpsd_control_prestart_internal(
+void location_gpsd_control_prestart_internal(
 		LocationGPSDControl *control, int unsure_ui_related)
 {
 	GError *error = NULL;
@@ -668,7 +687,7 @@ static void location_gpsd_control_prestart_internal(
 	}
 }
 
-static int main_loop()
+int main_loop()
 {
 	while (g_main_context_pending(NULL))
 		g_main_context_iteration(NULL, FALSE);
@@ -737,7 +756,7 @@ gint location_gpsd_control_get_allowed_methods(LocationGPSDControl *control)
 	return get_selected_method(priv, 0);
 }
 
-static void get_location_method(LocationGPSDControl *control,
+void get_location_method(LocationGPSDControl *control,
 		const GConfValue *value)
 {
 	LocationGPSDControlPrivate *priv;
@@ -792,7 +811,7 @@ static void get_location_method(LocationGPSDControl *control,
 	}
 }
 
-static void device_mode_changed_cb(int unused, gchar *sig, GObject *object)
+void device_mode_changed_cb(int unused, gchar *sig, GObject *object)
 {
 	LocationGPSDControlPrivate *priv;
 	gchar *mce_device_mode, *tmp;
@@ -819,7 +838,7 @@ static void device_mode_changed_cb(int unused, gchar *sig, GObject *object)
 	g_free(mce_device_mode);
 }
 
-static gboolean gconf_get_bool(gboolean *dest, const GConfValue *value)
+gboolean gconf_get_bool(gboolean *dest, const GConfValue *value)
 {
 	gboolean cur, ret, unchanged;
 
@@ -842,7 +861,7 @@ static gboolean gconf_get_bool(gboolean *dest, const GConfValue *value)
 	return ret;
 }
 
-static void on_gconf_changed(GConfClient *client, guint cnxn_id,
+void on_gconf_changed(GConfClient *client, guint cnxn_id,
 		GConfEntry *entry, GObject *object)
 {
 	LocationGPSDControlPrivate *priv;
@@ -903,7 +922,7 @@ static void on_gconf_changed(GConfClient *client, guint cnxn_id,
 	}
 }
 
-static void location_gpsd_control_class_dispose(GObject *object)
+void location_gpsd_control_class_dispose(GObject *object)
 {
 	LocationGPSDControlPrivate *priv;
 
@@ -955,7 +974,7 @@ static void location_gpsd_control_class_dispose(GObject *object)
 		g_assert("priv->device == NULL");
 }
 
-static void location_gpsd_control_class_set_property(GObject *object,
+void location_gpsd_control_class_set_property(GObject *object,
 		guint property_id, const GValue *value, GParamSpec *pspec)
 {
 	LocationGPSDControlPrivate  *priv;
@@ -988,7 +1007,7 @@ static void location_gpsd_control_class_set_property(GObject *object,
 	}
 }
 
-static void location_gpsd_control_class_get_property(GObject *object,
+void location_gpsd_control_class_get_property(GObject *object,
 		guint property_id, GValue *value, GParamSpec *pspec)
 {
 	LocationGPSDControlPrivate *priv;
@@ -1018,7 +1037,7 @@ static void location_gpsd_control_class_get_property(GObject *object,
 	}
 }
 
-static void location_gpsd_control_class_init(LocationGPSDControlClass *klass)
+void location_gpsd_control_class_init(LocationGPSDControlClass *klass)
 {
 	GObjectClass *object_class = G_OBJECT_CLASS(klass);
 
@@ -1073,7 +1092,7 @@ static void location_gpsd_control_class_init(LocationGPSDControlClass *klass)
 			LAST_PROP, obj_properties);
 }
 
-static void location_gpsd_control_init(LocationGPSDControl *control)
+void location_gpsd_control_init(LocationGPSDControl *control)
 {
 	LocationGPSDControlPrivate *priv;
 	DBusGConnection *bus;
