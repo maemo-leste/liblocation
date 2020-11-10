@@ -511,10 +511,11 @@ static dbus_bool_t set_from_gpsd(LocationGPSDevice *device, DBusMessage *msg)
 			DBUS_TYPE_DOUBLE, &eps,
 			DBUS_TYPE_DOUBLE, &climb,
 			DBUS_TYPE_DOUBLE, &epc,
-			DBUS_TYPE_STRING, &gpsd_devname);
+			DBUS_TYPE_STRING, &gpsd_devname,
+			DBUS_TYPE_INVALID);
 
 	if (dbus_error_is_set(&error)) {
-		g_critical("%s: dbus error: %s", G_STRFUNC, error.message);
+		g_critical("%s: dbus error: %s", G_STRLOC, error.message);
 		dbus_error_free(&error);
 	}
 
