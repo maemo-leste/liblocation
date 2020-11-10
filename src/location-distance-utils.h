@@ -24,12 +24,7 @@
 
 G_BEGIN_DECLS
 
-double location_distance_between (double latitude_s,
-				  double longitude_s,
-				  double latitude_f,
-				  double longitude_f);
-
-}
+double location_distance_between (double, double, double, double);
 
 G_END_DECLS
 

@@ -19,6 +19,8 @@
 
 #include <math.h>
 
+#include "location-distance-utils.h"
+
 static double d2r(double deg)
 {
 	return (deg * M_PI / 180);
