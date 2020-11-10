@@ -120,36 +120,31 @@ void ui_proxy_close(LocationGPSDControlPrivate *priv)
 
 int get_selected_method(LocationGPSDControlPrivate *priv, int method)
 {
-	int v3, v4, v5, result;
+	int acwp, gnss, agnss, result;
 
 	if (method) {
-		v3 = LOCATION_METHOD_ACWP;
-		v4 = LOCATION_METHOD_GNSS;
-		v5 = LOCATION_METHOD_AGNSS;
-		result = 1;
+		acwp = LOCATION_METHOD_ACWP;
+		gnss = LOCATION_METHOD_GNSS;
+		agnss = LOCATION_METHOD_AGNSS;
+		result = LOCATION_METHOD_CWP;
 		goto out;
 	}
 
 	result = method & LOCATION_METHOD_CWP;
 
-	if (method & LOCATION_METHOD_CWP) {
-		v3 = method & LOCATION_METHOD_ACWP;
-		v4 = method & LOCATION_METHOD_GNSS;
-		v5 = method & LOCATION_METHOD_AGNSS;
-		result = 1;
-		goto out;
-	}
+	if (method & LOCATION_METHOD_CWP)
+		result = LOCATION_METHOD_CWP;
 
-	v3 = method & LOCATION_METHOD_ACWP;
-	v4 = method & LOCATION_METHOD_GNSS;
-	v5 = method & LOCATION_METHOD_AGNSS;
+	acwp = method & LOCATION_METHOD_ACWP;
+	gnss = method & LOCATION_METHOD_GNSS;
+	agnss = method & LOCATION_METHOD_AGNSS;
 
 out:
-	if (v3 && !priv->net_disabled)
+	if (acwp && !priv->net_disabled)
 		result |= LOCATION_METHOD_ACWP;
-	if (v4 && !priv->gps_disabled)
+	if (gnss && !priv->gps_disabled)
 		result |= LOCATION_METHOD_GNSS;
-	if (v5 && !priv->net_disabled && !priv->gps_disabled)
+	if (agnss && !priv->net_disabled && !priv->gps_disabled)
 		result |= LOCATION_METHOD_AGNSS;
 
 	return result;
