@@ -12,7 +12,7 @@ Build-Depends:
 Package: liblocation0
 Section: libs
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}
+Depends: ${shlibs:Depends}, ${misc:Depends}, gpsd
 Description: Library for controlling gpsd
  Utility library for performing GPS related functions
 
