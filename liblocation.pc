@@ -8,4 +8,4 @@ Description: Location support library
 Version: 0.102
 Libs: -L${libdir} -llocation
 Cflags: -I${includedir}
-Requires: glib-2.0 gconf-2.0 dbus-glib-1 dbus-1
+Requires: glib-2.0 gconf-2.0 dbus-glib-1 dbus-1 libgps

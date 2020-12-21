@@ -102,10 +102,10 @@ typedef enum {
  * Details about satellites.
  */
 typedef struct {
-	int prn;
-	int elevation;
-	int azimuth;
-	int signal_strength;
+	short prn;
+	double elevation;
+	double azimuth;
+	double signal_strength;
 	gboolean in_use;
 } LocationGPSDeviceSatellite;
 
@@ -284,6 +284,7 @@ typedef struct _LocationGPSDevice {
 
 	/*< public >*/
 	gboolean online;
+	gint interval;
 	LocationGPSDeviceStatus status;
 	LocationGPSDeviceFix *fix;
 	int satellites_in_view;
