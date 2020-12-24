@@ -1,5 +1,6 @@
 Source: liblocation
 Priority: optional
+Section: libs
 Maintainer: Ivan J. <parazyd@dyne.org>
 Build-Depends:
  debhelper (>= 10),
