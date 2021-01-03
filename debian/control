@@ -8,7 +8,6 @@ Build-Depends:
  libdbus-glib-1-dev,
  libgconf2-dev,
  libglib2.0-dev,
- libgps-dev (>= 3.20)
 
 Package: liblocation0
 Section: libs
@@ -16,7 +15,7 @@ Architecture: any
 Depends:
  ${shlibs:Depends},
  ${misc:Depends},
- gpsd
+ location-daemon,
 Description: Library for controlling gpsd
  Utility library for performing GPS related functions
 
@@ -32,6 +31,5 @@ Depends:
  libdbus-glib-1-dev,
  libgconf2-dev,
  libglib2.0-dev,
- libgps-dev (>= 3.20)
 Description: Development files for liblocation
  Development files for liblocation0
