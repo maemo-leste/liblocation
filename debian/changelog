@@ -1,3 +1,9 @@
+liblocation (0.103-1) unstable; urgency=medium
+
+  * Initial Leste implementation.
+
+ -- Ivan J. <parazyd@dyne.org>  Sun, 03 Jan 2021 14:57:02 +0100
+
 liblocation (0.102-1) unstable; urgency=low
 
   * Fixes: NB#153540 - Customization of A-GPS server
