@@ -17,17 +17,14 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <errno.h>
 #include <math.h>
+#include <time.h>
 
+#include <dbus/dbus-glib-lowlevel.h>
 #include <gconf/gconf-client.h>
 #include <glib.h>
-#include <gps.h>
 
 #include "location-gps-device.h"
-
-#define GPSD_HOST  "localhost"
-#define GPSD_PORT  "2947"
 
 #define GC_LK       "/system/nokia/location/lastknown"
 #define GC_LK_TIME  GC_LK"/time"
@@ -38,8 +35,7 @@
 #define GC_LK_SPD   GC_LK"/speed"
 #define GC_LK_CLB   GC_LK"/climb"
 
-#define TSTONS(ts) ((double)((ts)->tv_sec + ((ts)->tv_nsec / 1e9)))
-#define nelem(x) (sizeof (x) / sizeof *(x))
+#define TSTONS(ts) ((double)((ts).tv_sec + ((ts).tv_nsec / 1e9)))
 
 enum {
 	DEVICE_CHANGED,
@@ -52,7 +48,8 @@ static guint signals[LAST_SIGNAL] = {};
 
 struct _LocationGPSDevicePrivate
 {
-	struct gps_data_t gpsdata;
+	DBusConnection *bus;
+	struct timespec t;
 	gint interval;
 	gboolean sig_pending;
 };
@@ -62,9 +59,15 @@ G_DEFINE_TYPE_WITH_PRIVATE(LocationGPSDevice, location_gps_device, G_TYPE_OBJECT
 /* function declarations */
 static int gconf_get_float(GConfClient *, double *, const gchar *);
 static GPtrArray *free_satellites(LocationGPSDevice *);
-static void set_satellites(LocationGPSDevice *);
 static int signal_changed(LocationGPSDevice *);
 static void add_g_timeout_interval(LocationGPSDevice *);
+static dbus_bool_t set_fix_status(LocationGPSDevice *, DBusMessage *);
+static dbus_bool_t set_time(LocationGPSDevice *, DBusMessage *);
+static dbus_bool_t set_position(LocationGPSDevice *, DBusMessage *);
+static dbus_bool_t set_accuracy(LocationGPSDevice *, DBusMessage *);
+static dbus_bool_t set_course(LocationGPSDevice *, DBusMessage *);
+static dbus_bool_t set_satellites(LocationGPSDevice *, DBusMessage *);
+static int on_locationdaemon_signal(int, DBusMessage *, gpointer);
 static void location_gps_device_finalize(GObject *);
 static void location_gps_device_dispose(GObject *);
 static void location_gps_device_class_init(LocationGPSDeviceClass *);
@@ -105,8 +108,10 @@ GPtrArray *free_satellites(LocationGPSDevice *device)
 	return result;
 }
 
-void set_satellites(LocationGPSDevice *device)
+dbus_bool_t set_satellites(LocationGPSDevice *device, DBusMessage *msg)
 {
+	return FALSE;
+	/*
 	g_debug(G_STRFUNC);
 	LocationGPSDevicePrivate *p = location_gps_device_get_instance_private(device);
 	GPtrArray *satarray;
@@ -129,99 +134,168 @@ void set_satellites(LocationGPSDevice *device)
 		if (sat->in_use)
 			++device->satellites_in_use;
 	}
+	*/
 }
 
-int poll_gpsd_data(LocationGPSDevice *device)
+dbus_bool_t set_time(LocationGPSDevice *device, DBusMessage *msg)
 {
-	g_debug(G_STRFUNC);
+	dbus_bool_t result;
+	LocationGPSDeviceFix *fix;
+	struct timespec t;
 
-	LocationGPSDevicePrivate *p = location_gps_device_get_instance_private(device);
-	LocationGPSDeviceFix *fix = device->fix;
+	result = dbus_message_get_args(msg, NULL,
+		DBUS_TYPE_INT64, &t.tv_sec,
+		DBUS_TYPE_INT64, &t.tv_nsec,
+		DBUS_TYPE_INVALID);
 
-	if (gps_waiting(&p->gpsdata, 500)) {
-		errno = 0;
-		if (gps_read(&p->gpsdata, NULL, 0) == -1) {
-			g_warning("error in gps_read");
-		} else {
-			g_debug("gps_read alright");
-			device->online = TRUE;
-			gboolean c = FALSE;
-
-			fix->mode = p->gpsdata.fix.mode;
-
-			if (p->gpsdata.satellites_visible > 0) {
-				set_satellites(device);
-				c = TRUE;
-			}
-
-			if (p->gpsdata.set & TIME_SET) {
-				fix->time = TSTONS(&p->gpsdata.fix.time);
-				fix->fields |= LOCATION_GPS_DEVICE_TIME_SET;
-				c = TRUE;
-			}
-
-			if (isfinite(p->gpsdata.fix.latitude) && isfinite(p->gpsdata.fix.longitude)) {
-				fix->latitude = p->gpsdata.fix.latitude;
-				fix->longitude = p->gpsdata.fix.longitude;
-				fix->fields |= LOCATION_GPS_DEVICE_LATLONG_SET;
-				c = TRUE;
-			}
-
-			if (isfinite(p->gpsdata.fix.eph)) {
-				fix->eph = p->gpsdata.fix.eph;
-				c = TRUE;
-			}
-
-			if (isfinite(p->gpsdata.fix.altHAE)) {
-				fix->altitude = p->gpsdata.fix.altHAE;
-				fix->fields |= LOCATION_GPS_DEVICE_ALTITUDE_SET;
-				c = TRUE;
-			}
-
-			if (isfinite(p->gpsdata.fix.epv)) {
-				fix->epv = p->gpsdata.fix.epv;
-				c = TRUE;
-			}
-
-			if (isfinite(p->gpsdata.fix.speed)) {
-				fix->speed = p->gpsdata.fix.speed;
-				fix->fields |= LOCATION_GPS_DEVICE_SPEED_SET;
-				c = TRUE;
-			}
-
-			if (isfinite(p->gpsdata.fix.eps)) {
-				fix->eps = p->gpsdata.fix.eps;
-				c = TRUE;
-			}
-
-			if (isfinite(p->gpsdata.fix.track)) {
-				fix->track = p->gpsdata.fix.track;
-				fix->fields |= LOCATION_GPS_DEVICE_TRACK_SET;
-				c = TRUE;
-			}
-
-			if (isfinite(p->gpsdata.fix.eps)) {
-				fix->eps = p->gpsdata.fix.eps;
-				c = TRUE;
-			}
-
-			if (isfinite(p->gpsdata.fix.climb)) {
-				fix->climb = p->gpsdata.fix.climb;
-				fix->fields |= LOCATION_GPS_DEVICE_CLIMB_SET;
-				c = TRUE;
-			}
-
-			if (isfinite(p->gpsdata.fix.epc)) {
-				fix->epc = p->gpsdata.fix.epc;
-				c = TRUE;
-			}
-
-			if (c)
-				add_g_timeout_interval(device);
-		}
+	if (result) {
+		fix = device->fix;
+		fix->time = TSTONS(t);
+		fix->fields |= LOCATION_GPS_DEVICE_TIME_SET;
 	}
 
-	return 1;
+	return result;
+}
+
+dbus_bool_t set_course(LocationGPSDevice *device, DBusMessage *msg)
+{
+	dbus_bool_t result;
+	LocationGPSDeviceFix *fix;
+	double speed, track, climb;
+
+	result = dbus_message_get_args(msg, NULL,
+		DBUS_TYPE_DOUBLE, &speed,
+		DBUS_TYPE_DOUBLE, &track,
+		DBUS_TYPE_DOUBLE, &climb,
+		DBUS_TYPE_INVALID);
+
+	if (result) {
+		fix = device->fix;
+
+		if (isfinite(speed)) {
+			fix->fields |= LOCATION_GPS_DEVICE_SPEED_SET;
+			fix->speed = speed;
+			/* fix-speed = speed * 1.852; */
+		}
+
+		if (isfinite(track)) {
+			fix->fields |= LOCATION_GPS_DEVICE_TRACK_SET;
+			fix->track = track;
+		}
+
+		if (isfinite(climb)) {
+			fix->fields |= LOCATION_GPS_DEVICE_CLIMB_SET;
+			fix->climb = climb;
+		}
+
+		add_g_timeout_interval(device);
+	}
+
+	return result;
+}
+
+dbus_bool_t set_fix_status(LocationGPSDevice *device, DBusMessage *msg)
+{
+	dbus_bool_t result;
+	LocationGPSDeviceFix *fix;
+	int mode;
+
+	result = dbus_message_get_args(msg, NULL,
+		DBUS_TYPE_BYTE, &mode,
+		DBUS_TYPE_INVALID);
+
+	if (result) {
+		fix = device->fix;
+		fix->mode = mode;
+		add_g_timeout_interval(device);
+	}
+
+	return result;
+}
+
+dbus_bool_t set_position(LocationGPSDevice *device, DBusMessage *msg)
+{
+	dbus_bool_t result;
+	LocationGPSDeviceFix *fix;
+	double latitude, longitude, altitude;
+
+	result = dbus_message_get_args(msg, NULL,
+		DBUS_TYPE_DOUBLE, &latitude,
+		DBUS_TYPE_DOUBLE, &longitude,
+		DBUS_TYPE_DOUBLE, &altitude,
+		DBUS_TYPE_INVALID);
+
+	if (result) {
+		fix = device->fix;
+
+		if (isfinite(latitude) && isfinite(longitude)) {
+			fix->latitude = latitude;
+			fix->longitude = longitude;
+			fix->fields |= LOCATION_GPS_DEVICE_LATLONG_SET;
+		} else {
+			fix->fields &= LOCATION_GPS_DEVICE_LATLONG_SET;
+		}
+
+		if (isfinite(altitude)) {
+			fix->altitude = altitude;
+			fix->fields |= LOCATION_GPS_DEVICE_ALTITUDE_SET;
+		} else {
+			fix->fields &= LOCATION_GPS_DEVICE_ALTITUDE_SET;
+		}
+
+		if (isfinite(latitude) && isfinite(longitude) && isfinite(altitude))
+			fix->mode = LOCATION_GPS_DEVICE_MODE_3D;
+		else if (isfinite(latitude) && isfinite(longitude))
+			fix->mode = LOCATION_GPS_DEVICE_MODE_2D;
+		else
+			fix->mode = LOCATION_GPS_DEVICE_MODE_NO_FIX;
+
+		add_g_timeout_interval(device);
+	}
+
+	return result;
+}
+
+dbus_bool_t set_accuracy(LocationGPSDevice *device, DBusMessage *msg)
+{
+	dbus_bool_t result;
+	LocationGPSDeviceFix *fix;
+	double ept, epv, epd, eps, epc, eph;
+
+	result = dbus_message_get_args(msg, NULL,
+		DBUS_TYPE_DOUBLE, &ept,
+		DBUS_TYPE_DOUBLE, &epv,
+		DBUS_TYPE_DOUBLE, &epd,
+		DBUS_TYPE_DOUBLE, &eps,
+		DBUS_TYPE_DOUBLE, &epc,
+		DBUS_TYPE_DOUBLE, &eph,
+		DBUS_TYPE_INVALID);
+
+	if (result) {
+		fix = device->fix;
+
+		if (isfinite(ept))
+			fix->ept = ept;
+
+		if (isfinite(epv))
+			fix->epv = epv;
+
+		if (isfinite(epd))
+			fix->epd = epd;
+
+		if (isfinite(eps))
+			fix->eps = eps;
+
+		if (isfinite(epc))
+			fix->epc = epc;
+
+		if (isfinite(eph))
+			fix->eph = eph;
+
+		add_g_timeout_interval(device);
+	}
+
+	return result;
 }
 
 void store_lastknown_in_gconf(LocationGPSDevice *device)
@@ -288,6 +362,54 @@ void add_g_timeout_interval(LocationGPSDevice *device)
 	}
 }
 
+int on_locationdaemon_signal(int unused, DBusMessage *msg, gpointer obj)
+{
+	LocationGPSDevice *device;
+
+	if (!LOCATION_IS_GPS_DEVICE(obj))
+		g_assert("LOCATION_IS_GPS_DEVICE(obj)");
+
+	device = LOCATION_GPS_DEVICE(obj);
+
+	if (dbus_message_is_signal(msg, "org.maemo.LocationDaemon.Time",
+			"TimeChanged")) {
+		set_time(device, msg);
+		return 1;
+	}
+
+	if (dbus_message_is_signal(msg, "org.maemo.LocationDaemon.Course",
+			"CourseChanged")) {
+		set_course(device, msg);
+		return 1;
+	}
+
+	if (dbus_message_is_signal(msg, "org.maemo.LocationDaemon.Device",
+			"FixStatusChanged")) {
+		set_fix_status(device, msg);
+		return 1;
+	}
+
+	if (dbus_message_is_signal(msg, "org.maemo.LocationDaemon.Accuracy",
+			"AccuracyChanged")) {
+		set_accuracy(device, msg);
+		return 1;
+	}
+
+	if (dbus_message_is_signal(msg, "org.maemo.LocationDaemon.Position",
+			"PositionChanged")) {
+		set_position(device, msg);
+		return 1;
+	}
+
+	if (dbus_message_is_signal(msg, "org.maemo.LocationDaemon.Satellite",
+			"SatellitesChanged")) {
+		set_satellites(device, msg);
+		return 1;
+	}
+
+	return 1;
+}
+
 void location_gps_device_reset_last_known(LocationGPSDevice *device)
 {
 	LocationGPSDeviceFix *fix = device->fix;
@@ -348,8 +470,39 @@ void location_gps_device_dispose(GObject *object)
 	LocationGPSDevicePrivate *p;
 	p = location_gps_device_get_instance_private(LOCATION_GPS_DEVICE(object));
 
-	(void) gps_stream(&p->gpsdata, WATCH_DISABLE, NULL);
-	(void) gps_close(&p->gpsdata);
+	if (p->bus) {
+		dbus_bus_remove_match(p->bus,
+			"type='signal',interface='org.maemo.LocationDaemon.Device'",
+			NULL);
+		dbus_bus_remove_match(p->bus,
+			"type='signal',interface='org.maemo.LocationDaemon.Position'",
+			NULL);
+		dbus_bus_remove_match(p->bus,
+			"type='signal',interface='org.maemo.LocationDaemon.Course'",
+			NULL);
+		dbus_bus_remove_match(p->bus,
+			"type='signal',interface='org.maemo.LocationDaemon.Satellite'",
+			NULL);
+		dbus_bus_remove_match(p->bus,
+			"type='signal',interface='org.maemo.LocationDaemon.Accuracy'",
+			NULL);
+		dbus_bus_remove_match(p->bus,
+			"type='signal',interface='org.maemo.LocationDaemon.Time'",
+			NULL);
+		/* liblas & co. */
+		dbus_bus_remove_match(p->bus,
+			"type='signal',interface='com.nokia.Location.Cell'",
+			NULL);
+		dbus_bus_remove_match(p->bus,
+			"type='signal',interface='com.nokia.Location.Uncertainty",
+			NULL);
+		dbus_connection_remove_filter(p->bus,
+			(DBusHandleMessageFunction)on_locationdaemon_signal,
+			LOCATION_GPS_DEVICE(object));
+		dbus_connection_close(p->bus);
+		dbus_connection_unref(p->bus);
+		p->bus = NULL;
+	}
 
 	g_signal_emit(LOCATION_GPS_DEVICE(object), signals[DEVICE_DISCONNECTED], 0);
 }
@@ -391,14 +544,42 @@ void location_gps_device_init(LocationGPSDevice *device)
 
 	p = location_gps_device_get_instance_private(device);
 
-	if (gps_open(GPSD_HOST, GPSD_PORT, &p->gpsdata)) {
-		g_critical("%s: Could not open gpsd socket: %d, %s",
-				G_STRLOC, errno, gps_errstr(errno));
+	p->bus = dbus_bus_get_private(DBUS_BUS_SYSTEM, NULL);
+	dbus_connection_setup_with_g_main(p->bus, NULL);
+
+	if (p->bus) {
+		dbus_bus_add_match(p->bus,
+			"type='signal',interface='org.maemo.LocationDaemon.Device'",
+			NULL);
+		dbus_bus_add_match(p->bus,
+			"type='signal',interface='org.maemo.LocationDaemon.Position'",
+			NULL);
+		dbus_bus_add_match(p->bus,
+			"type='signal',interface='org.maemo.LocationDaemon.Course'",
+			NULL);
+		dbus_bus_add_match(p->bus,
+			"type='signal',interface='org.maemo.LocationDaemon.Satellite'",
+			NULL);
+		dbus_bus_add_match(p->bus,
+			"type='signal',interface='org.maemo.LocationDaemon.Accuracy'",
+			NULL);
+		dbus_bus_add_match(p->bus,
+			"type='signal',interface='org.maemo.LocationDaemon.Time'",
+			NULL);
+		/* liblas & co. */
+		dbus_bus_add_match(p->bus,
+			"type='signal',interface='com.nokia.Location.Cell'",
+			NULL);
+		dbus_bus_add_match(p->bus,
+			"type='signal',interface='com.nokia.Location.Uncertainty",
+			NULL);
+		dbus_connection_add_filter(p->bus,
+			(DBusHandleMessageFunction)on_locationdaemon_signal,
+			device,
+			NULL);
 	}
 
 	g_signal_emit(device, signals[DEVICE_CONNECTED], 0);
-
-	(void) gps_stream(&p->gpsdata, WATCH_ENABLE, NULL);
 
 	device->online = FALSE;
 	device->status = LOCATION_GPS_DEVICE_STATUS_NO_FIX;
@@ -452,18 +633,13 @@ void location_gps_device_init(LocationGPSDevice *device)
 	else
 		fix->climb = LOCATION_GPS_DEVICE_NAN;
 
-	/* TODO: Maybe don't hardcode the default */
-	if (device->interval < 1000)
-		device->interval = 1000;
-
 	g_object_unref(client);
-
-	g_timeout_add(device->interval, (GSourceFunc)poll_gpsd_data, device);
 
 	/*
 	if (dbus_bus_name_has_owner(p->bus, "com.nokia.Location", NULL)) {
 		get_values_from_gypsy(device, "com.nokia.Location", "las");
-	} else {
+	}
+	else {
 		gchar *car_retloc = NULL;
 		gchar *cdr_retloc = NULL;
 		client = gconf_client_get_default();
