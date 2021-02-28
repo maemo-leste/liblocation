@@ -1,3 +1,9 @@
+liblocation (0.104-1) unstable; urgency=medium
+
+  * Fix up g_assert calls.
+
+ -- Ivan J. <parazyd@dyne.org>  Sun, 28 Feb 2021 22:52:10 +0100
+
 liblocation (0.103-1) unstable; urgency=medium
 
   * Initial Leste implementation.
