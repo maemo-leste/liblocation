@@ -366,9 +366,7 @@ int on_locationdaemon_signal(int unused, DBusMessage *msg, gpointer obj)
 {
 	LocationGPSDevice *device;
 
-	if (!LOCATION_IS_GPS_DEVICE(obj))
-		g_assert("LOCATION_IS_GPS_DEVICE(obj)");
-
+	g_assert(LOCATION_IS_GPS_DEVICE(obj));
 	device = LOCATION_GPS_DEVICE(obj);
 
 	if (dbus_message_is_signal(msg, "org.maemo.LocationDaemon.Time",
@@ -415,9 +413,7 @@ void location_gps_device_reset_last_known(LocationGPSDevice *device)
 	LocationGPSDeviceFix *fix = device->fix;
 	GConfClient *client;
 
-	if (!LOCATION_IS_GPS_DEVICE(device))
-		g_assert("LOCATION_IS_GPS_DEVICE(device)");
-
+	g_assert(LOCATION_IS_GPS_DEVICE(device));
 	client = gconf_client_get_default();
 
 	device->status = LOCATION_GPS_DEVICE_STATUS_NO_FIX;

@@ -169,9 +169,7 @@ void on_positioning_activate_response(int unused, int a2, GObject *object)
 {
 	LocationGPSDControlPrivate *p;
 
-	if (!LOCATION_IS_GPSD_CONTROL(object))
-		g_assert("LOCATION_IS_GPSD_CONTROL(object)");
-
+	g_assert(LOCATION_IS_GPSD_CONTROL(object));
 	p = location_gpsd_control_get_instance_private(LOCATION_GPSD_CONTROL(object));
 
 	/* TODO: Simplify */
@@ -255,9 +253,7 @@ void toggle_gps_and_disclaimer(int unused, int a2, GObject *object)
 {
 	LocationGPSDControlPrivate *p;
 
-	if (!LOCATION_IS_GPSD_CONTROL(object))
-		g_assert("LOCATION_IS_GPSD_CONTROL(object)");
-
+	g_assert(LOCATION_IS_GPSD_CONTROL(object));
 	p = location_gpsd_control_get_instance_private(LOCATION_GPSD_CONTROL(object));
 
 	p->dis_accepted = a2 == 0;
@@ -293,9 +289,7 @@ void toggle_gps_and_supl(int unused, int a2, GObject *object)
 {
 	LocationGPSDControlPrivate *p;
 
-	if (!LOCATION_IS_GPSD_CONTROL(object))
-		g_assert("LOCATION_IS_GPSD_CONTROL(object)");
-
+	g_assert(LOCATION_IS_GPSD_CONTROL(object));
 	p = location_gpsd_control_get_instance_private(LOCATION_GPSD_CONTROL(object));
 
 	if (!a2) {
@@ -320,9 +314,7 @@ void toggle_network(int unused, int state, GObject *object)
 {
 	LocationGPSDControlPrivate *p;
 
-	if (!LOCATION_IS_GPSD_CONTROL(object))
-		g_assert("LOCATION_IS_GPSD_CONTROL(object)");
-
+	g_assert(LOCATION_IS_GPSD_CONTROL(object));
 	p = location_gpsd_control_get_instance_private(LOCATION_GPSD_CONTROL(object));
 
 	p->net_disabled = state != 0;
@@ -344,9 +336,7 @@ void toggle_gps(int unused, int state, GObject *object)
 {
 	LocationGPSDControlPrivate *p;
 
-	if (!LOCATION_IS_GPSD_CONTROL(object))
-		g_assert("LOCATION_IS_GPSD_CONTROL(object)");
-
+	g_assert(LOCATION_IS_GPSD_CONTROL(object));
 	p = location_gpsd_control_get_instance_private(LOCATION_GPSD_CONTROL(object));
 
 	p->gps_disabled = state != 0;
@@ -379,9 +369,7 @@ void location_gpsd_control_start_internal(LocationGPSDControl *control,
 	GValue value;
 	int method;
 
-	if (!LOCATION_IS_GPSD_CONTROL(control))
-		g_assert("LOCATION_IS_GPSD_CONTROL(control)");
-
+	g_assert(LOCATION_IS_GPSD_CONTROL(control));
 	p = location_gpsd_control_get_instance_private(control);
 
 	if (p->gpsd_running)
@@ -543,8 +531,7 @@ lab96:
 		goto lab46;
 
 lab22:
-	if (!LOCATION_IS_GPSD_CONTROL(control))
-		g_assert("LOCATION_IS_GPSD_CONTROL(control)");
+	g_assert(LOCATION_IS_GPSD_CONTROL(control));
 
 	// interval = p->interval
 
@@ -686,8 +673,7 @@ void location_gpsd_control_start(LocationGPSDControl *control)
 {
 	LocationGPSDControlPrivate *p;
 
-	if (!LOCATION_IS_GPSD_CONTROL(control))
-		g_assert("LOCATION_IS_GPSD_CONTROL(control)");
+	g_assert(LOCATION_IS_GPSD_CONTROL(control));
 
 	p = location_gpsd_control_get_instance_private(control);
 
@@ -706,9 +692,7 @@ void location_gpsd_control_stop(LocationGPSDControl *control)
 {
 	LocationGPSDControlPrivate *p;
 
-	if (!LOCATION_IS_GPSD_CONTROL(control))
-		g_assert("LOCATION_IS_GPSD_CONTROL(control)");
-
+	g_assert(LOCATION_IS_GPSD_CONTROL(control));
 	p = location_gpsd_control_get_instance_private(control);
 
 	if (p->ctx) {
@@ -778,9 +762,7 @@ void device_mode_changed_cb(int unused, gchar *sig, GObject *object)
 	LocationGPSDControlPrivate *p;
 	gchar *mce_device_mode, *tmp;
 
-	if (!LOCATION_IS_GPSD_CONTROL(object))
-		g_assert("LOCATION_IS_GPSD_CONTROL(object)");
-
+	g_assert(LOCATION_IS_GPSD_CONTROL(object));
 	p = location_gpsd_control_get_instance_private(LOCATION_GPSD_CONTROL(object));
 
 	mce_device_mode = p->mce_device_mode;
@@ -828,12 +810,8 @@ void on_gconf_changed(GConfClient *client, guint cnxn_id, GConfEntry *entry,
 	GQuark quark;
 	GError *err = NULL;
 
-	if (!entry || !entry->key)
-		g_assert("entry && entry->key");
-
-	if (!LOCATION_IS_GPSD_CONTROL(object))
-		g_assert("LOCATION_IS_GPSD_CONTROL(object)");
-
+	g_assert(entry && entry->key);
+	g_assert(LOCATION_IS_GPSD_CONTROL(object));
 	p = location_gpsd_control_get_instance_private(LOCATION_GPSD_CONTROL(object));
 
 	if (g_str_equal(entry->key, GC_METHOD)) {
@@ -883,9 +861,7 @@ void location_gpsd_control_class_dispose(GObject *object)
 {
 	LocationGPSDControlPrivate *p;
 
-	if (!LOCATION_IS_GPSD_CONTROL(object))
-		g_assert("LOCATION_IS_GPSD_CONTROL(object)");
-
+	g_assert(LOCATION_IS_GPSD_CONTROL(object));
 	p = location_gpsd_control_get_instance_private(LOCATION_GPSD_CONTROL(object));
 
 	if (p->gconf) {
@@ -926,9 +902,7 @@ void location_gpsd_control_class_set_property(GObject *object,
 	LocationGPSDControlPrivate *p;
 	const gchar *list, *klass_type, *parent_type;
 
-	if (!LOCATION_IS_GPSD_CONTROL(object))
-		g_assert("LOCATION_IS_GPSD_CONTROL(object)");
-
+	g_assert(LOCATION_IS_GPSD_CONTROL(object));
 	p = location_gpsd_control_get_instance_private(LOCATION_GPSD_CONTROL(object));
 
 	switch ((ControlClassProperty)property_id) {
@@ -957,9 +931,7 @@ void location_gpsd_control_class_get_property(GObject *object,
 	LocationGPSDControlPrivate *p;
 	const gchar *list, *klass_type, *parent_type;
 
-	if (!LOCATION_IS_GPSD_CONTROL(object))
-		g_assert("LOCATION_IS_GPSD_CONTROL(object)");
-
+	g_assert(LOCATION_IS_GPSD_CONTROL(object));
 	p = location_gpsd_control_get_instance_private(LOCATION_GPSD_CONTROL(object));
 
 	switch ((ControlClassProperty)property_id) {
@@ -1076,9 +1048,7 @@ void location_gpsd_control_init(LocationGPSDControl *control)
 
 gint location_gpsd_control_get_allowed_methods(LocationGPSDControl *control)
 {
-	if (!LOCATION_IS_GPSD_CONTROL(control))
-		g_assert("LOCATION_IS_GPSD_CONTROL(control)");
-
+	g_assert(LOCATION_IS_GPSD_CONTROL(control));
 	return get_selected_method(control, 0);
 }
 
