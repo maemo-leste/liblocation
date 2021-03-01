@@ -3,7 +3,7 @@ Priority: optional
 Section: libs
 Maintainer: Ivan J. <parazyd@dyne.org>
 Build-Depends:
- debhelper (>= 10),
+ debhelper-compat (= 12),
  libdbus-1-dev,
  libdbus-glib-1-dev,
  libgconf2-dev,
@@ -16,6 +16,7 @@ Depends:
  ${shlibs:Depends},
  ${misc:Depends},
  location-daemon,
+ location-ui,
 Description: Library for controlling gpsd
  Utility library for performing GPS related functions
 
