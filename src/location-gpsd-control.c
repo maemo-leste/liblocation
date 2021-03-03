@@ -23,6 +23,13 @@
 
 #include "location-gpsd-control.h"
 
+#include <sys/file.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <stdio.h>
+#include <fcntl.h>
+#include <unistd.h>
+
 #define GC_LOC           "/system/nokia/location"
 #define GC_METHOD        GC_LOC"/method"
 #define GC_GPS_DISABLED  GC_LOC"/gps-disabled"
@@ -65,6 +72,7 @@ struct _LocationGPSDControlPrivate
 	int interval;
 	gboolean field_48;
 	gchar *mce_device_mode;
+	int lockfd;
 };
 
 static guint signals[LAST_SIGNAL] = {};
@@ -97,11 +105,16 @@ static void location_gpsd_control_class_get_property(GObject *, guint, GValue *,
 static void location_gpsd_control_class_init(LocationGPSDControlClass *);
 static void location_gpsd_control_init(LocationGPSDControl *);
 
+#define FLOCK_PATH "/run/lock/location-daemon.lock"
+
 void gpsd_shutdown(LocationGPSDControl *control)
 {
 	LocationGPSDControlPrivate *p;
 	p = location_gpsd_control_get_instance_private(control);
 	p->gpsd_running = FALSE;
+	fprintf(stderr, "Closing lock\n");
+	flock(p->lockfd, LOCK_UN);
+	close(p->lockfd);
 }
 
 int gpsd_start(LocationGPSDControl *control)
@@ -109,6 +122,16 @@ int gpsd_start(LocationGPSDControl *control)
 	LocationGPSDControlPrivate *p;
 	p = location_gpsd_control_get_instance_private(control);
 	p->gpsd_running = TRUE;
+	fprintf(stderr, "Opening lock\n");
+	// XXX: This requires location-daemon to already be started
+    	p->lockfd = open(FLOCK_PATH, O_CREAT|O_RDONLY, S_IWUSR|S_IRUSR|S_IWGRP|S_IRGRP);
+	if (p->lockfd < 0) {
+		perror("Could not open FLOCK_PATH");
+		// Raise error
+	}
+	if (flock(p->lockfd, LOCK_SH)) {
+		perror("Could not shared-lock FLOCK_PATH");
+	}
 	return 0;
 }
 
