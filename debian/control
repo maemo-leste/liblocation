@@ -19,6 +19,7 @@ Depends:
  ${shlibs:Depends},
  ${misc:Depends},
  location-daemon,
+ location-control,
  location-ui,
 Description: Library for controlling gpsd
  Utility library for performing GPS related functions
