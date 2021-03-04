@@ -8,6 +8,9 @@ Build-Depends:
  libdbus-glib-1-dev,
  libgconf2-dev,
  libglib2.0-dev,
+Standards-Version: 4.3.0
+Vcs-Git: https://github.com/maemo-leste/liblocation
+Vcs-Browser: https://github.com/maemo-leste/liblocation
 
 Package: liblocation0
 Section: libs
