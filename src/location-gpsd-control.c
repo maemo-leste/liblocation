@@ -135,7 +135,7 @@ void gpsd_shutdown(LocationGPSDControl *control)
 	if (!p->gpsd_running)
 		return;
 
-	if (!p->location_daemon_proxy) {
+	if (p->location_daemon_proxy) {
 		g_object_unref(p->location_daemon_proxy);
 		p->location_daemon_proxy = NULL;
 	}
@@ -149,12 +149,14 @@ int gpsd_start(LocationGPSDControl *control)
 		return 0;
 
 	if (!p->location_daemon_proxy) {
-		g_message("starting daemon proxy");
 		p->location_daemon_proxy = dbus_g_proxy_new_for_name(p->dbus,
 			LOCATION_DAEMON_SERVICE, LOCATION_DAEMON_PATH,
 			LOCATION_DAEMON_SERVICE);
 		dbus_g_proxy_call_no_reply(p->location_daemon_proxy, "start",
 			G_TYPE_INVALID);
+		g_object_unref(p->location_daemon_proxy);
+		p->location_daemon_proxy = NULL;
+		return 1;
 	}
 	return 0;
 }
@@ -271,6 +273,7 @@ void register_dbus_signal_callback(LocationGPSDControl *control,
 		dbus_g_proxy_call(p->location_ui_proxy, "display",
 				&ierr, G_TYPE_INVALID);
 
+		/* TODO: Some error is raised here */
 		if (ierr) {
 			quark = dbus_g_error_quark();
 			if (g_error_matches(ierr, quark, 32)
@@ -699,7 +702,6 @@ void location_gpsd_control_prestart_internal(LocationGPSDControl *control,
 gboolean main_loop(void)
 {
 	while (g_main_context_pending(NULL))
-		g_message("mainloop iter");
 		g_main_context_iteration(NULL, FALSE);
 
 	return TRUE;
