@@ -16,6 +16,9 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+#include <errno.h>
+#include <sys/file.h>
+#include <unistd.h>
 
 #include <dbus/dbus-glib.h>
 #include <gconf/gconf-client.h>
@@ -30,6 +33,7 @@
 #define GC_DIS_ACCEPTED  GC_LOC"/disclaimer-accepted"
 
 #define LOCATION_DAEMON_SERVICE "org.maemo.LocationDaemon"
+#define LOCATION_DAEMON_PATH    "/org/maemo/LocationDaemon"
 #define FLOCK_PATH "/run/lock/location-daemon.lock"
 
 #define LOCATION_UI_SERVICE  "com.nokia.Location.UI"
@@ -76,6 +80,7 @@ struct _LocationGPSDControlPrivate
 	GConfClient *gconf;
 	DBusGConnection *dbus;
 	DBusGProxy *location_ui_proxy;
+	DBusGProxy *location_daemon_proxy;
 	DBusGProxy *cdr_method;
 	gchar *device;
 	gchar *device_car;
@@ -90,6 +95,7 @@ struct _LocationGPSDControlPrivate
 	int interval;
 	gboolean field_48;
 	gchar *mce_device_mode;
+	int lockfd;
 };
 
 static guint signals[LAST_SIGNAL] = {};
@@ -126,14 +132,30 @@ void gpsd_shutdown(LocationGPSDControl *control)
 {
 	LocationGPSDControlPrivate *p;
 	p = location_gpsd_control_get_instance_private(control);
-	p->gpsd_running = FALSE;
+	if (!p->gpsd_running)
+		return;
+
+	if (!p->location_daemon_proxy) {
+		g_object_unref(p->location_daemon_proxy);
+		p->location_daemon_proxy = NULL;
+	}
 }
 
 int gpsd_start(LocationGPSDControl *control)
 {
 	LocationGPSDControlPrivate *p;
 	p = location_gpsd_control_get_instance_private(control);
-	p->gpsd_running = TRUE;
+	if (p->gpsd_running)
+		return 0;
+
+	if (!p->location_daemon_proxy) {
+		g_message("starting daemon proxy");
+		p->location_daemon_proxy = dbus_g_proxy_new_for_name(p->dbus,
+			LOCATION_DAEMON_SERVICE, LOCATION_DAEMON_PATH,
+			LOCATION_DAEMON_SERVICE);
+		dbus_g_proxy_call_no_reply(p->location_daemon_proxy, "start",
+			G_TYPE_INVALID);
+	}
 	return 0;
 }
 
@@ -521,7 +543,7 @@ lab43:
 lab60:
 			if (!p->location_ui_proxy)
 				register_dbus_signal_callback(control, UI_ENABLE_NETWORK,
-						(void (*)(void))toggle_gps_and_supl,
+						(void (*)(void))toggle_network,
 						err);
 			return;
 		}
@@ -908,6 +930,11 @@ void location_gpsd_control_class_dispose(GObject *object)
 		dbus_g_connection_unref(p->dbus);
 		p->dbus = NULL;
 	}
+
+	if (p->lockfd >= 0) {
+		flock(p->lockfd, LOCK_UN);
+		close(p->lockfd);
+	}
 }
 
 void location_gpsd_control_class_set_property(GObject *object,
@@ -1029,6 +1056,13 @@ void location_gpsd_control_init(LocationGPSDControl *control)
 	GConfValue *method;
 
 	p = location_gpsd_control_get_instance_private(control);
+
+	p->lockfd = open(FLOCK_PATH, O_CREAT|O_RDONLY,
+			S_IWUSR|S_IRUSR|S_IWGRP|S_IRGRP);
+	if (p->lockfd <  0)
+		g_critical("open() flock: %s", g_strerror(errno));
+	if (flock(p->lockfd, LOCK_SH))
+		g_critical("could not shared-lock: %s", g_strerror(errno));
 
 	p->sel_method = LOCATION_METHOD_USER_SELECTED;
 	p->interval = LOCATION_INTERVAL_DEFAULT;
