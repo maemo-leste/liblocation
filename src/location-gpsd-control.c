@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020 Ivan J. <parazyd@dyne.org>
+ * Copyright (c) 2020-2021 Ivan J. <parazyd@dyne.org>
  *
  * This file is part of liblocation
  *
@@ -28,6 +28,31 @@
 #define GC_GPS_DISABLED  GC_LOC"/gps-disabled"
 #define GC_NET_DISABLED  GC_LOC"/network-disabled"
 #define GC_DIS_ACCEPTED  GC_LOC"/disclaimer-accepted"
+
+#define LOCATION_DAEMON_SERVICE "org.maemo.LocationDaemon"
+#define FLOCK_PATH "/run/lock/location-daemon.lock"
+
+#define LOCATION_UI_SERVICE  "com.nokia.Location.UI"
+#define LOCATION_UI_DIALOG   LOCATION_UI_SERVICE".Dialog"
+#define LOCATION_UI_INUSE    LOCATION_UI_SERVICE".Error.InUse"
+
+#define UI_METHOD_PATH        "/com/nokia/location/ui"
+#define UI_DISCLAIMER         UI_METHOD_PATH"/disclaimer"
+#define UI_ENABLE_POSITIONING UI_METHOD_PATH"/enable_positioning"
+#define UI_BT_DISABLED        UI_METHOD_PATH"/bt_disabled"
+#define UI_ENABLE_AGNSS       UI_METHOD_PATH"/enable_agnss"
+#define UI_ENABLE_NETWORK     UI_METHOD_PATH"/enable_network"
+#define UI_ENABLE_GPS         UI_METHOD_PATH"/enable_gps"
+
+#define MCE_SERVICE         "com.nokia.mce"
+#define MCE_REQUEST_METHOD  MCE_SERVICE".request"
+#define MCE_REQUEST_PATH    "/com/nokia/mce/request"
+#define MCE_SIGNAL_METHOD   MCE_SERVICE".signal"
+#define MCE_SIGNAL_PATH     "/com/nokia/mce/signal"
+
+#define BLUEZ_SERVICE  "org.bluez"
+#define BLUEZ_ADAPTER  BLUEZ_SERVICE".Adapter"
+#define BLUEZ_MANAGER  BLUEZ_SERVICE".Manager"
 
 typedef enum {
 	METHOD = 1,
@@ -212,9 +237,9 @@ void register_dbus_signal_callback(LocationGPSDControl *control,
 
 	if (!p->location_ui_proxy) {
 		new_proxy = dbus_g_proxy_new_for_name(p->dbus,
-				"com.nokia.Location.UI",
+				LOCATION_UI_SERVICE,
 				path,
-				"com.nokia.Location.UI.Dialog");
+				LOCATION_UI_DIALOG);
 		p->location_ui_proxy = new_proxy;
 
 		dbus_g_proxy_add_signal(p->location_ui_proxy, "response",
@@ -228,8 +253,7 @@ void register_dbus_signal_callback(LocationGPSDControl *control,
 			quark = dbus_g_error_quark();
 			if (g_error_matches(ierr, quark, 32)
 					&& (err_name = dbus_g_error_get_name(ierr),
-						g_str_equal(err_name,
-							"com.nokia.Location.UI.Error.InUse"))) {
+						g_str_equal(err_name, LOCATION_UI_INUSE))) {
 				response = strtol(ierr->message, NULL, 10);
 				g_message("%s already active, current response = %d",
 						path, response);
@@ -378,8 +402,7 @@ void location_gpsd_control_start_internal(LocationGPSDControl *control,
 	if (!p->dis_accepted) {
 		if (unsure_ui_related) {
 			if (!p->location_ui_proxy)
-				register_dbus_signal_callback(control,
-						"/com/nokia/location/ui/disclaimer",
+				register_dbus_signal_callback(control, UI_DISCLAIMER,
 						(void (*)(void))toggle_gps_and_disclaimer,
 						err);
 			return;
@@ -397,9 +420,7 @@ lab46:
 	if (!mce_device_mode) {
 		mce_device_mode = NULL;
 		proxy = dbus_g_proxy_new_for_name(p->dbus,
-				"com.nokia.mce",
-				"/com/nokia/mce/request",
-				"com.nokia.mce.request");
+				MCE_SERVICE, MCE_REQUEST_PATH, MCE_REQUEST_METHOD);
 		dbus_g_proxy_call(proxy, "get_device_mode",
 				&ierr, G_TYPE_INVALID,
 				G_TYPE_STRING, &mce_device_mode,
@@ -443,8 +464,7 @@ lab46:
 			}
 
 lab43:
-			register_dbus_signal_callback(control,
-					"/com/nokia/location/ui/enable_positioning",
+			register_dbus_signal_callback(control, UI_ENABLE_POSITIONING,
 					(void (*)(void))on_positioning_activate_response, err);
 			return;
 		}
@@ -452,8 +472,7 @@ lab43:
 		g_debug("%s: We are in offline mode now!", G_STRLOC);
 
 		if (g_strcmp0(p->device, "las")) {
-			register_dbus_signal_callback(control,
-					"/com/nokia/location/ui/bt_disabled", NULL, NULL);
+			register_dbus_signal_callback(control, UI_BT_DISABLED, NULL, NULL);
 			g_warning("%s: Offline mode, external device, giving up.", G_STRLOC);
 			g_signal_emit(control, signals[ERROR], 0);
 			g_signal_emit(control, signals[ERROR_VERBOSE], 0,
@@ -491,8 +510,7 @@ lab43:
 					return;
 
 				if ((unsigned int)(method - 8) <= 1) {
-					register_dbus_signal_callback(control,
-							"/com/nokia/location/ui/enable_agnss",
+					register_dbus_signal_callback(control, UI_ENABLE_AGNSS,
 							(void (*)(void))toggle_gps_and_supl,
 							err);
 					return;
@@ -502,8 +520,7 @@ lab43:
 			}
 lab60:
 			if (!p->location_ui_proxy)
-				register_dbus_signal_callback(control,
-						"/com/nokia/location/ui/enable_network",
+				register_dbus_signal_callback(control, UI_ENABLE_NETWORK,
 						(void (*)(void))toggle_gps_and_supl,
 						err);
 			return;
@@ -519,8 +536,7 @@ lab96:
 		}
 
 		if (!p->location_ui_proxy)
-			register_dbus_signal_callback(control,
-					"/com/nokia/location/ui/enable_gps",
+			register_dbus_signal_callback(control, UI_ENABLE_GPS,
 					(void (*)(void))toggle_gps,
 					err);
 		return;
@@ -547,8 +563,7 @@ lab22:
 	mce_device_mode = NULL;
 	hash_table = NULL;
 
-	proxy = dbus_g_proxy_new_for_name(p->dbus, "org.bluez", "/",
-			"org.bluez.Manager");
+	proxy = dbus_g_proxy_new_for_name(p->dbus, BLUEZ_SERVICE, "/", BLUEZ_MANAGER);
 	type = dbus_g_object_path_get_g_type();
 	if (!dbus_g_proxy_call(proxy, "DefaultAdapter", &ierr,
 				G_TYPE_INVALID, type, &mce_device_mode,
@@ -560,8 +575,7 @@ lab22:
 
 		g_object_unref(proxy);
 lab31:
-		register_dbus_signal_callback(control,
-				"/com/nokia/location/ui/bt_disabled", NULL, NULL);
+		register_dbus_signal_callback(control, UI_BT_DISABLED, NULL, NULL);
 		quark = g_quark_from_static_string("location-error-quark");
 		g_set_error(err, quark, 4, "Bluetooth not available");
 		return;
@@ -569,8 +583,8 @@ lab31:
 
 	g_object_unref(proxy);
 
-	proxy = dbus_g_proxy_new_for_name(p->dbus, "org.bluez",
-			mce_device_mode, "org.bluez.Adapter");
+	proxy = dbus_g_proxy_new_for_name(p->dbus, BLUEZ_SERVICE,
+			mce_device_mode, BLUEZ_ADAPTER);
 	type = g_value_get_type();
 	hashtable_type = dbus_g_type_get_map("GHashTable", G_TYPE_STRING, type);
 	v21 = dbus_g_proxy_call(proxy, "GetProperties", &ierr,
@@ -1038,8 +1052,8 @@ void location_gpsd_control_init(LocationGPSDControl *control)
 	p->client_id = gconf_client_notify_add(p->gconf, GC_LOC,
 			(GConfClientNotifyFunc)on_gconf_changed, control, NULL, NULL);
 
-	p->cdr_method = dbus_g_proxy_new_for_name(p->dbus, "com.nokia.mce",
-			"/com/nokia/mce/signal", "com.nokia.mce.signal");
+	p->cdr_method = dbus_g_proxy_new_for_name(p->dbus, MCE_SERVICE,
+			MCE_SIGNAL_PATH, MCE_SIGNAL_METHOD);
 	dbus_g_proxy_add_signal(p->cdr_method, "sig_device_mode_ind",
 			G_TYPE_STRING, G_TYPE_INVALID);
 	dbus_g_proxy_connect_signal(p->cdr_method, "sig_device_mode_ind",
