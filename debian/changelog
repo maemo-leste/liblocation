@@ -1,3 +1,14 @@
+liblocation (0.105-1) unstable; urgency=medium
+
+  * Add dependency on location-control.
+  * Close the location-daemon proxy after starting.
+  * Implement flock and activate location-daemon with dbus.
+  * Use defines for all dbus variables and methods.
+  * Add missing fields in debian/control.
+  * Add location-ui dependency, and dh12.
+
+ -- Ivan J. <parazyd@dyne.org>  Thu, 04 Mar 2021 19:36:27 +0100
+
 liblocation (0.104-1) unstable; urgency=medium
 
   * Fix up g_assert calls.
