@@ -18,6 +18,7 @@
  */
 
 #include <math.h>
+#include <stdint.h>
 #include <time.h>
 
 #include <dbus/dbus-glib-lowlevel.h>
@@ -198,7 +199,7 @@ dbus_bool_t set_fix_status(LocationGPSDevice *device, DBusMessage *msg)
 {
 	dbus_bool_t result;
 	LocationGPSDeviceFix *fix;
-	int mode;
+	uint8_t mode;
 
 	result = dbus_message_get_args(msg, NULL,
 		DBUS_TYPE_BYTE, &mode,
