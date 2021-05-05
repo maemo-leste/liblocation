@@ -111,31 +111,52 @@ GPtrArray *free_satellites(LocationGPSDevice *device)
 
 dbus_bool_t set_satellites(LocationGPSDevice *device, DBusMessage *msg)
 {
-	return FALSE;
-	/*
 	g_debug(G_STRFUNC);
-	LocationGPSDevicePrivate *p = location_gps_device_get_instance_private(device);
 	GPtrArray *satarray;
-	LocationGPSDeviceSatellite *sat;
-	int i;
+	DBusMessageIter iter, arr, st;
+	int t;
 
 	free_satellites(device);
 	satarray = g_ptr_array_new();
 	device->satellites = satarray;
 
-	for (i = 0; i < nelem(p->gpsdata.skyview); i++) {
-		sat = g_malloc(sizeof(LocationGPSDeviceSatellite));
-		sat->prn = p->gpsdata.skyview[i].PRN;
-		sat->in_use = p->gpsdata.skyview[i].used;
-		sat->elevation = p->gpsdata.skyview[i].elevation;
-		sat->azimuth = p->gpsdata.skyview[i].azimuth;
-		sat->signal_strength = p->gpsdata.skyview[i].ss;
+	dbus_message_iter_init(msg, &iter);
+
+	if ((t = dbus_message_iter_get_arg_type(&iter)) != DBUS_TYPE_ARRAY)
+		return FALSE;
+
+	dbus_message_iter_recurse(&iter, &arr);
+
+	while ((t = dbus_message_iter_get_arg_type(&arr)) != DBUS_TYPE_INVALID) {
+		LocationGPSDeviceSatellite *sat = g_malloc(
+			sizeof(LocationGPSDeviceSatellite));
+
+		dbus_message_iter_recurse(&arr, &st);
+
+		dbus_message_iter_get_basic(&st, &sat->prn);
+		dbus_message_iter_next(&st);
+
+		dbus_message_iter_get_basic(&st, &sat->elevation);
+		dbus_message_iter_next(&st);
+
+		dbus_message_iter_get_basic(&st, &sat->azimuth);
+		dbus_message_iter_next(&st);
+
+		dbus_message_iter_get_basic(&st, &sat->signal_strength);
+		dbus_message_iter_next(&st);
+
+		dbus_message_iter_get_basic(&st, &sat->in_use);
+		dbus_message_iter_next(&st);
+
 		g_ptr_array_add(device->satellites, sat);
 		++device->satellites_in_view;
 		if (sat->in_use)
 			++device->satellites_in_use;
+
+		dbus_message_iter_next(&arr);
 	}
-	*/
+
+	return TRUE;
 }
 
 dbus_bool_t set_time(LocationGPSDevice *device, DBusMessage *msg)
