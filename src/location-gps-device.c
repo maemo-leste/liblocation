@@ -196,8 +196,8 @@ dbus_bool_t set_course(LocationGPSDevice *device, DBusMessage *msg)
 
 		if (isfinite(speed)) {
 			fix->fields |= LOCATION_GPS_DEVICE_SPEED_SET;
-			fix->speed = speed;
-			/* fix-speed = speed * 1.852; */
+			/* gpsd and location-daemon give us m/s, but we will give km/h */
+			fix->speed = speed * 3.6;
 		}
 
 		if (isfinite(track)) {
