@@ -1,3 +1,9 @@
+liblocation (0.108-1) unstable; urgency=medium
+
+  * Report speed as km/h.
+
+ -- Ivan J. <parazyd@dyne.org>  Sat, 15 May 2021 18:58:43 +0200
+
 liblocation (0.107-1) unstable; urgency=medium
 
   * Implement satellite reporting.
