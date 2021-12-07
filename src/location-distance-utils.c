@@ -43,9 +43,9 @@ float lng_scale(double lat)
 
 // return distance in meters between two locations
 double location_distance_between(double latitude_s,
-								 double longitude_s,
-								 double latitude_f,
-								 double longitude_f)
+				 double longitude_s,
+				 double latitude_f,
+				 double longitude_f)
 {
 	float dlat = (float)(latitude_f - latitude_s);
 	float dlng = (float)(longitude_f - longitude_s) * lng_scale(latitude_s);
