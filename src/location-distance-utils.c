@@ -41,6 +41,19 @@ double lng_scale(double lat)
 	return MAX(scale, 0.01f);
 }
 
+/*
+ * From https://github.com/maemo-leste/liblocation/pull/1
+ *
+ * The original code used Spherical law of cosines which gives good results down
+ * to distances as small as few meters, what is used here is Equirectangular
+ * approximation which is accurate for small distances only but performs well.
+ * of course there's Haversine which is accurate for all king of distances but
+ * considered relatively slow.  I could add Haversine calculations, what do you
+ * think?  here's a link talks about all three laws:
+ *
+ * https://www.movable-type.co.uk/scripts/latlong.html
+ *
+ */
 // return distance in meters between two locations
 double location_distance_between(double latitude_s,
 		double longitude_s,
