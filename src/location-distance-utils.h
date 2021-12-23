@@ -24,7 +24,7 @@
 
 G_BEGIN_DECLS
 
-float lng_scale(double lat);
+double lng_scale(double lat);
 
 double location_distance_between (double latitude_s,
 		double longitude_s,

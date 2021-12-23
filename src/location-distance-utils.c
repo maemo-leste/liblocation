@@ -35,19 +35,19 @@ static float LOCATION_SCALING_FACTOR = 111318.84502145034f;
 // #define R2D (180.0f / M_PI)
 
 // compensate for shrinking longitude towards poles
-float lng_scale(double lat)
+double lng_scale(double lat)
 {
-	float scale = cosf(lat * D2R);
+	double scale = cosf(lat * D2R);
 	return MAX(scale, 0.01f);
 }
 
 // return distance in meters between two locations
 double location_distance_between(double latitude_s,
-				 double longitude_s,
-				 double latitude_f,
-				 double longitude_f)
+		double longitude_s,
+		double latitude_f,
+		double longitude_f)
 {
-	float dlat = (float)(latitude_f - latitude_s);
-	float dlng = (float)(longitude_f - longitude_s) * lng_scale(latitude_s);
+	double dlat = (latitude_f - latitude_s);
+	double dlng = (longitude_f - longitude_s) * lng_scale(latitude_s);
 	return sqrtf(dlat * dlat + dlng * dlng) * LOCATION_SCALING_FACTOR;
 }
