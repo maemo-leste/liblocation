@@ -21,31 +21,33 @@
 
 #include "location-distance-utils.h"
 
-static double d2r(double deg)
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
+// scaling factor from degrees to meters at equator
+// == DEG_TO_RAD * radius of earth
+static float LOCATION_SCALING_FACTOR = 111318.84502145034f;
+
+#define MAX(a, b) (((a) > (b)) ? (a) : (b))
+
+#define D2R (M_PI / 180.0f)
+// #define R2D (180.0f / M_PI)
+
+// compensate for shrinking longitude towards poles
+double lng_scale(double lat)
 {
-	return (deg * M_PI / 180);
+	double scale = cosf(lat * D2R);
+	return MAX(scale, 0.01f);
 }
 
-static double r2d(double rad)
-{
-	return (rad * 180 / M_PI);
-}
-
+// return distance in meters between two locations
 double location_distance_between(double latitude_s,
 		double longitude_s,
 		double latitude_f,
 		double longitude_f)
 {
-	double theta, dist;
-
-	theta = longitude_s - longitude_f;
-	dist = sin(d2r(latitude_s)) * sin(d2r(latitude_f)) \
-		+ cos(d2r(latitude_s)) * cos(d2r(latitude_f)) \
-		* cos(d2r(theta));
-	dist = acos(dist);
-	dist = r2d(dist);
-	dist = dist * 60 * 1.1515;
-	dist = dist * 1.609344; /* kilometers */
-
-	return dist;
+	double dlat = (latitude_f - latitude_s);
+	double dlng = (longitude_f - longitude_s) * lng_scale(latitude_s);
+	return sqrtf(dlat * dlat + dlng * dlng) * LOCATION_SCALING_FACTOR;
 }
