@@ -139,6 +139,10 @@ void gpsd_shutdown(LocationGPSDControl *control)
 		g_object_unref(p->location_daemon_proxy);
 		p->location_daemon_proxy = NULL;
 	}
+	p->gpsd_running = FALSE;
+	flock(p->lockfd, LOCK_UN);
+	close(p->lockfd);
+	p->lockfd = -1;
 }
 
 int gpsd_start(LocationGPSDControl *control)
@@ -149,6 +153,12 @@ int gpsd_start(LocationGPSDControl *control)
 		return 0;
 
 	if (!p->location_daemon_proxy) {
+		p->lockfd = open(FLOCK_PATH, O_CREAT|O_RDONLY,
+				S_IWUSR|S_IRUSR|S_IWGRP|S_IRGRP);
+		if (p->lockfd <  0)
+			g_critical("open() flock: %s", g_strerror(errno));
+		if (flock(p->lockfd, LOCK_SH))
+			g_critical("could not shared-lock: %s", g_strerror(errno));
 		p->location_daemon_proxy = dbus_g_proxy_new_for_name(p->dbus,
 			LOCATION_DAEMON_SERVICE, LOCATION_DAEMON_PATH,
 			LOCATION_DAEMON_SERVICE);
@@ -167,7 +177,8 @@ void ui_proxy_close(LocationGPSDControl *control)
 
 	if (p->location_ui_proxy) {
 		if (p->ui_open) {
-			dbus_g_proxy_call(p->location_ui_proxy, "close", NULL, G_TYPE_INVALID);
+			dbus_g_proxy_call(p->location_ui_proxy, "close", NULL, G_TYPE_INVALID,
+					G_TYPE_INVALID);
 			p->ui_open = FALSE;
 		}
 		g_object_unref(p->location_ui_proxy);
@@ -180,11 +191,11 @@ int get_selected_method(LocationGPSDControl *control, int method)
 	int acwp, gnss, agnss, result;
 	LocationGPSDControlPrivate *p = location_gpsd_control_get_instance_private(control);
 
-	if (method) {
+	if (!method) {
 		acwp = LOCATION_METHOD_ACWP;
 		gnss = LOCATION_METHOD_GNSS;
 		agnss = LOCATION_METHOD_AGNSS;
-		result = LOCATION_METHOD_CWP;
+		result = p->net_disabled ? 0 : LOCATION_METHOD_CWP;
 		goto out;
 	}
 
@@ -271,7 +282,7 @@ void register_dbus_signal_callback(LocationGPSDControl *control,
 		dbus_g_proxy_connect_signal(p->location_ui_proxy, "response",
 				handler_func, control, NULL);
 		dbus_g_proxy_call(p->location_ui_proxy, "display",
-				&ierr, G_TYPE_INVALID);
+				&ierr, G_TYPE_INVALID, G_TYPE_INVALID);
 
 		/* TODO: Some error is raised here */
 		if (ierr) {
@@ -751,10 +762,12 @@ void get_location_method(LocationGPSDControl *control, const GConfValue *value)
 	LocationGPSDControlPrivate *p;
 	GConfValue *car_ret, *cdr_ret;
 	const gchar *cdr_str, *car_str;
+	gboolean stopped;
 
 	p = location_gpsd_control_get_instance_private(control);
 
-	if (p->gpsd_running)
+	stopped = p->gpsd_running;
+	if (stopped)
 		gpsd_shutdown(control);
 
 	if (p->device != NULL) {
@@ -768,7 +781,7 @@ void get_location_method(LocationGPSDControl *control, const GConfValue *value)
 	}
 
 	if (!value) {
-		if (!p->gpsd_running)
+		if (stopped)
 			g_signal_emit(control, signals[GPSD_STOPPED], 0);
 		return;
 	}
@@ -779,7 +792,7 @@ void get_location_method(LocationGPSDControl *control, const GConfValue *value)
 	if (car_ret) {
 		if (!cdr_ret || car_ret->type != GCONF_VALUE_STRING
 				|| cdr_ret->type != GCONF_VALUE_STRING) {
-			if (!p->gpsd_running)
+			if (stopped)
 				g_signal_emit(control, signals[GPSD_STOPPED], 0);
 		} else {
 			cdr_str = gconf_value_get_string(cdr_ret);
@@ -789,7 +802,7 @@ void get_location_method(LocationGPSDControl *control, const GConfValue *value)
 			g_debug("car_str: %s", car_str);
 			p->device_car = g_strdup(car_str);
 
-			if (!p->gpsd_running)
+			if (stopped)
 				location_gpsd_control_prestart_internal(control, TRUE);
 		}
 	}
@@ -1059,12 +1072,7 @@ void location_gpsd_control_init(LocationGPSDControl *control)
 
 	p = location_gpsd_control_get_instance_private(control);
 
-	p->lockfd = open(FLOCK_PATH, O_CREAT|O_RDONLY,
-			S_IWUSR|S_IRUSR|S_IWGRP|S_IRGRP);
-	if (p->lockfd <  0)
-		g_critical("open() flock: %s", g_strerror(errno));
-	if (flock(p->lockfd, LOCK_SH))
-		g_critical("could not shared-lock: %s", g_strerror(errno));
+	p->lockfd = -1;
 
 	p->sel_method = LOCATION_METHOD_USER_SELECTED;
 	p->interval = LOCATION_INTERVAL_DEFAULT;
