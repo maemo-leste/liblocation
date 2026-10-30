@@ -181,11 +181,11 @@ int get_selected_method(LocationGPSDControl *control, int method)
 	int acwp, gnss, agnss, result;
 	LocationGPSDControlPrivate *p = location_gpsd_control_get_instance_private(control);
 
-	if (method) {
+	if (!method) {
 		acwp = LOCATION_METHOD_ACWP;
 		gnss = LOCATION_METHOD_GNSS;
 		agnss = LOCATION_METHOD_AGNSS;
-		result = LOCATION_METHOD_CWP;
+		result = p->net_disabled ? 0 : LOCATION_METHOD_CWP;
 		goto out;
 	}
 
