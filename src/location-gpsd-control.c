@@ -752,10 +752,12 @@ void get_location_method(LocationGPSDControl *control, const GConfValue *value)
 	LocationGPSDControlPrivate *p;
 	GConfValue *car_ret, *cdr_ret;
 	const gchar *cdr_str, *car_str;
+	gboolean stopped;
 
 	p = location_gpsd_control_get_instance_private(control);
 
-	if (p->gpsd_running)
+	stopped = p->gpsd_running;
+	if (stopped)
 		gpsd_shutdown(control);
 
 	if (p->device != NULL) {
@@ -769,7 +771,7 @@ void get_location_method(LocationGPSDControl *control, const GConfValue *value)
 	}
 
 	if (!value) {
-		if (!p->gpsd_running)
+		if (stopped)
 			g_signal_emit(control, signals[GPSD_STOPPED], 0);
 		return;
 	}
@@ -780,7 +782,7 @@ void get_location_method(LocationGPSDControl *control, const GConfValue *value)
 	if (car_ret) {
 		if (!cdr_ret || car_ret->type != GCONF_VALUE_STRING
 				|| cdr_ret->type != GCONF_VALUE_STRING) {
-			if (!p->gpsd_running)
+			if (stopped)
 				g_signal_emit(control, signals[GPSD_STOPPED], 0);
 		} else {
 			cdr_str = gconf_value_get_string(cdr_ret);
@@ -790,7 +792,7 @@ void get_location_method(LocationGPSDControl *control, const GConfValue *value)
 			g_debug("car_str: %s", car_str);
 			p->device_car = g_strdup(car_str);
 
-			if (!p->gpsd_running)
+			if (stopped)
 				location_gpsd_control_prestart_internal(control, TRUE);
 		}
 	}
