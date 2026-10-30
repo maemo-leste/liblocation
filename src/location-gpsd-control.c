@@ -139,6 +139,7 @@ void gpsd_shutdown(LocationGPSDControl *control)
 		g_object_unref(p->location_daemon_proxy);
 		p->location_daemon_proxy = NULL;
 	}
+	p->gpsd_running = FALSE;
 }
 
 int gpsd_start(LocationGPSDControl *control)
