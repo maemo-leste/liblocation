@@ -140,6 +140,9 @@ void gpsd_shutdown(LocationGPSDControl *control)
 		p->location_daemon_proxy = NULL;
 	}
 	p->gpsd_running = FALSE;
+	flock(p->lockfd, LOCK_UN);
+	close(p->lockfd);
+	p->lockfd = -1;
 }
 
 int gpsd_start(LocationGPSDControl *control)
@@ -150,6 +153,12 @@ int gpsd_start(LocationGPSDControl *control)
 		return 0;
 
 	if (!p->location_daemon_proxy) {
+		p->lockfd = open(FLOCK_PATH, O_CREAT|O_RDONLY,
+				S_IWUSR|S_IRUSR|S_IWGRP|S_IRGRP);
+		if (p->lockfd <  0)
+			g_critical("open() flock: %s", g_strerror(errno));
+		if (flock(p->lockfd, LOCK_SH))
+			g_critical("could not shared-lock: %s", g_strerror(errno));
 		p->location_daemon_proxy = dbus_g_proxy_new_for_name(p->dbus,
 			LOCATION_DAEMON_SERVICE, LOCATION_DAEMON_PATH,
 			LOCATION_DAEMON_SERVICE);
@@ -1063,12 +1072,7 @@ void location_gpsd_control_init(LocationGPSDControl *control)
 
 	p = location_gpsd_control_get_instance_private(control);
 
-	p->lockfd = open(FLOCK_PATH, O_CREAT|O_RDONLY,
-			S_IWUSR|S_IRUSR|S_IWGRP|S_IRGRP);
-	if (p->lockfd <  0)
-		g_critical("open() flock: %s", g_strerror(errno));
-	if (flock(p->lockfd, LOCK_SH))
-		g_critical("could not shared-lock: %s", g_strerror(errno));
+	p->lockfd = -1;
 
 	p->sel_method = LOCATION_METHOD_USER_SELECTED;
 	p->interval = LOCATION_INTERVAL_DEFAULT;
