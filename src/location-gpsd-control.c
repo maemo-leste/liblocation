@@ -167,7 +167,8 @@ void ui_proxy_close(LocationGPSDControl *control)
 
 	if (p->location_ui_proxy) {
 		if (p->ui_open) {
-			dbus_g_proxy_call(p->location_ui_proxy, "close", NULL, G_TYPE_INVALID);
+			dbus_g_proxy_call(p->location_ui_proxy, "close", NULL, G_TYPE_INVALID,
+					G_TYPE_INVALID);
 			p->ui_open = FALSE;
 		}
 		g_object_unref(p->location_ui_proxy);
@@ -271,7 +272,7 @@ void register_dbus_signal_callback(LocationGPSDControl *control,
 		dbus_g_proxy_connect_signal(p->location_ui_proxy, "response",
 				handler_func, control, NULL);
 		dbus_g_proxy_call(p->location_ui_proxy, "display",
-				&ierr, G_TYPE_INVALID);
+				&ierr, G_TYPE_INVALID, G_TYPE_INVALID);
 
 		/* TODO: Some error is raised here */
 		if (ierr) {
